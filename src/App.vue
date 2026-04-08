@@ -1,142 +1,70 @@
-<template>
-  <div class="eis-container">
-    <header>
-      <h1>EIS Analyzer Pro</h1>
-      <div class="controls">
-        <label class="upload-btn">
-          Ladda upp .csv
-          <input type="file" @change="handleFileUpload" accept=".csv" />
-        </label>
+<script setup lang="ts">
+import { ref } from 'vue'
+import BaseTabs from '@/components/ui/BaseTabs.vue'
+import BaseTabPanel from '@/components/ui/BaseTabPanel.vue'
+import type { TabItem } from '@/components/ui/tabsContext'
+import DataPanel from '@/components/panels/DataPanel.vue'
+import PlotPanel from '@/components/panels/PlotPanel.vue'
+import CircuitPanel from '@/components/panels/CircuitPanel.vue'
+import FitPanel from '@/components/panels/FitPanel.vue'
+import ExportPanel from '@/components/panels/ExportPanel.vue'
 
-        <div class="view-toggle">
-          <button 
-            :class="{ active: currentView === 'nyquist' }" 
-            @click="currentView = 'nyquist'"
-          >
-            Nyquist Plot
-          </button>
-          <button 
-            :class="{ active: currentView === 'bode' }" 
-            @click="currentView = 'bode'"
-          >
-            Bode Plot
-          </button>
-        </div>
-      </div>
+const tabs = [
+  { id: 'data', label: 'Data' },
+  { id: 'plot', label: 'Plot' },
+  { id: 'circuit', label: 'Circuit' },
+  { id: 'fit', label: 'Fit' },
+  { id: 'export', label: 'Export' },
+] as const satisfies readonly TabItem[]
+
+type TabId = (typeof tabs)[number]['id']
+
+const activeTab = ref<TabId>('data')
+</script>
+
+<template>
+  <div class="app">
+    <header class="app__header">
+      <h1 class="app__title">EIS Analyzer</h1>
+      <p class="app__subtitle">Electrochemical Impedance Spectroscopy</p>
     </header>
 
-    <main>
-      <div class="plot-area">
-        <div v-if="!dataLoaded" class="placeholder">
-          Ingen data laddad. Vänligen ladda upp en .csv fil.
-        </div>
-        <div v-else>
-          <h2>Visar: {{ currentView === 'nyquist' ? 'Nyquist ($Z_{re}$ vs $-Z_{im}$)' : 'Bode (Frekvens vs Fas/Amplitud)' }}</h2>
-          <div class="graph-box">
-            <p>Graf-komponent för {{ currentView }} hamnar här.</p>
-          </div>
-        </div>
-      </div>
+    <main class="app__main">
+      <BaseTabs :tabs="tabs" v-model="activeTab">
+        <BaseTabPanel tab-id="data"><DataPanel /></BaseTabPanel>
+        <BaseTabPanel tab-id="plot"><PlotPanel /></BaseTabPanel>
+        <BaseTabPanel tab-id="circuit"><CircuitPanel /></BaseTabPanel>
+        <BaseTabPanel tab-id="fit"><FitPanel /></BaseTabPanel>
+        <BaseTabPanel tab-id="export"><ExportPanel /></BaseTabPanel>
+      </BaseTabs>
     </main>
   </div>
 </template>
 
-<script setup>
-import { ref } from 'vue';
-
-const currentView = ref('nyquist'); // Håller koll på vilken vy som är aktiv
-const dataLoaded = ref(false);
-const rawData = ref(null);
-
-const handleFileUpload = (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      // Här kan du skicka datan till en CSV-parser (t.ex. PapaParse)
-      console.log("Fil laddad:", file.name);
-      rawData.value = e.target.result;
-      dataLoaded.value = true;
-    };
-    reader.readAsText(file);
-  }
-};
-</script>
-
 <style scoped>
-.eis-container {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  max-width: 1000px;
+.app {
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 20px;
-  color: #333;
+  padding: var(--space-5) var(--space-4);
 }
 
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px solid #eee;
-  padding-bottom: 20px;
+.app__header {
+  margin-bottom: var(--space-5);
 }
 
-.controls {
-  display: flex;
-  gap: 15px;
-  align-items: center;
+.app__title {
+  font-size: 24px;
+  font-weight: 600;
 }
 
-.upload-btn {
-  background-color: #42b883;
-  color: white;
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
+.app__subtitle {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: 14px;
 }
 
-.upload-btn input {
-  display: none;
-}
-
-.view-toggle {
-  display: flex;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.view-toggle button {
-  padding: 10px 15px;
-  border: none;
-  background: #f9f9f9;
-  cursor: pointer;
-}
-
-.view-toggle button.active {
-  background: #35495e;
-  color: white;
-}
-
-.plot-area {
-  margin-top: 40px;
-  min-height: 400px;
-  background: #fcfcfc;
-  border: 1px dashed #ccc;
+.app__main {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.graph-box {
-  width: 100%;
-  height: 350px;
-  background: #fff;
-  border: 1px solid #eee;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
 }
 </style>
