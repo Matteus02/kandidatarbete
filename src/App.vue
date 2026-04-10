@@ -20,6 +20,24 @@ const tabs = [
 type TabId = (typeof tabs)[number]['id']
 
 const activeTab = ref<TabId>('data')
+const globalfileName = ref('')
+
+interface EISData {
+  'freq/Hz': number
+  'Re(Z)/Ohm': number
+  '-Im(Z)/Ohm': number
+  '|Z|/Ohm': number
+  'Phase(Z)/deg': number
+  // Du kan lägga till fler kolumner här om du behöver dem senare
+}
+
+const globalEISData = ref<EISData[]>([]) // Samma interface som i DataPanel
+
+const handleAnalysisComplete = (data: EISData[], name: string) => {
+  globalfileName.value = name
+  globalEISData.value = data // Spara ner datan centralt
+  activeTab.value = 'plot' // Byt flik
+}
 </script>
 
 <template>
@@ -31,8 +49,11 @@ const activeTab = ref<TabId>('data')
 
     <main class="app__main">
       <BaseTabs :tabs="tabs" v-model="activeTab">
-        <BaseTabPanel tab-id="data"><DataPanel /></BaseTabPanel>
-        <BaseTabPanel tab-id="plot"><PlotPanel /></BaseTabPanel>
+        <BaseTabPanel tab-id="data"
+          ><DataPanel :initial-file-name="globalfileName"
+  :initial-data="globalEISData" @analysis-complete="handleAnalysisComplete" />
+        </BaseTabPanel>
+        <BaseTabPanel tab-id="plot"><PlotPanel :eis-data="globalEISData" /></BaseTabPanel>
         <BaseTabPanel tab-id="circuit"><CircuitPanel /></BaseTabPanel>
         <BaseTabPanel tab-id="fit"><FitPanel /></BaseTabPanel>
         <BaseTabPanel tab-id="export"><ExportPanel /></BaseTabPanel>
