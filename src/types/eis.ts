@@ -2,11 +2,11 @@
 // These are intentionally minimal — extend as features are built.
 
 export interface EisDataPoint {
-  frequency: number // Hz
-  zReal: number // Ohm
-  zImag: number // Ohm
-  magnitude?: number // |Z|, optional
-  phase?: number // degrees, optional
+  'freq/Hz': number;
+  'Re(Z)/Ohm': number;
+  '-Im(Z)/Ohm': number;
+  '|Z|/Ohm': number;
+  'Phase(Z)/deg': number;
 }
 
 export type CircuitElementKind = 'R' | 'C' | 'L' | 'CPE' | 'W'

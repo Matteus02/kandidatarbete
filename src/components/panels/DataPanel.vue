@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import BaseCard from '@/components/ui/BaseCard.vue'
 import { ref } from 'vue'
-import Papa from 'papaparse'
+import * as Papa from 'papaparse'
+import type { EisDataPoint } from '@/types/eis'
 
 interface EISData {
   'freq/Hz': number
@@ -14,7 +15,7 @@ interface EISData {
 
 const props = defineProps<{
   initialFileName: string
-  initialData: EISData[]
+  initialData: EisDataPoint[]
 }>()
 
 const fileName = ref(props.initialFileName)

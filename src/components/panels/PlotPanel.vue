@@ -2,17 +2,10 @@
 import BaseCard from '@/components/ui/BaseCard.vue'
 import { watch, onMounted } from 'vue'
 import Plotly from 'plotly.js-dist-min'
-
-interface EISData {
-  'freq/Hz': number;
-  'Re(Z)/Ohm': number;
-  '-Im(Z)/Ohm': number;
-  '|Z|/Ohm': number;
-  'Phase(Z)/deg': number;
-}
+import type { EisDataPoint } from '@/types/eis'
 
 const props = defineProps<{
-  eisData: EISData[]
+  eisData: EisDataPoint[]
 }>()
 
 const drawPlots = () => {
