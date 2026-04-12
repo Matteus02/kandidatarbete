@@ -69,7 +69,7 @@ const generatePlots = () => {
 .data-panel {
   display: flex;
   flex-direction: column;
-  gap: 15px; /* Detta ger ett snyggt mellanrum mellan filväljaren och knappen */
+  gap: 15px; 
   align-items: flex-start;
 }
 
