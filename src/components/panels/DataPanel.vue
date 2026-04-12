@@ -4,22 +4,13 @@ import { ref } from 'vue'
 import * as Papa from 'papaparse'
 import type { EisDataPoint } from '@/types/eis'
 
-interface EISData {
-  'freq/Hz': number
-  'Re(Z)/Ohm': number
-  '-Im(Z)/Ohm': number
-  '|Z|/Ohm': number
-  'Phase(Z)/deg': number
-  // Du kan lägga till fler kolumner här om du behöver dem senare
-}
-
 const props = defineProps<{
   initialFileName: string
   initialData: EisDataPoint[]
 }>()
 
 const fileName = ref(props.initialFileName)
-const parsedData = ref<EISData[]>(props.initialData)
+const parsedData = ref<EisDataPoint[]>(props.initialData)
 const isAnalyzing = ref(false)
 
 const onFileChange = (event: Event) => {
@@ -31,8 +22,7 @@ const onFileChange = (event: Event) => {
     Papa.parse(file, {
       header: true,
       complete: (results) => {
-        console.log('Data laddades upp:', results.data)
-        parsedData.value = results.data as EISData[]
+        parsedData.value = results.data as EisDataPoint[]
       },
     })
   }
@@ -63,7 +53,7 @@ const generatePlots = () => {
       <p>Choose a .csv-file for analysis!</p>
       <input type="file" @change="onFileChange" accept=".csv" />
       <p v-if="fileName">Uploaded file: {{ fileName }}</p>
-      <button class="analyse-file-button" @click="generatePlots">Analyze Data</button>
+      <button class="analyse-file-button" @click="generatePlots">Plot Data</button>
       <div v-if="isAnalyzing" class="overlay">
         <div class="loader-content">
           <div class="spinner"></div>
@@ -83,10 +73,6 @@ const generatePlots = () => {
   align-items: flex-start;
 }
 
-.placeholder {
-  color: var(--color-text-muted);
-  margin: 0;
-}
 .analyse-file-button {
   background-color: #007bff;
   color: white;

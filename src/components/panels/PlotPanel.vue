@@ -63,8 +63,12 @@ const drawPlots = () => {
       Plotly.newPlot('nyquist-plot', [nyquistTrace], nyquistLayout)
       Plotly.newPlot('bode-plot', [bodeMagTrace], bodeLayout)
 }
+const emit = defineEmits(['model-circuit'])
 
-// Rita graferna så fort komponenten laddas eller datan ändras
+const modelCircuit = () => {
+  emit('model-circuit')
+}
+
 onMounted(drawPlots)
 watch(() => props.eisData, drawPlots)
 </script>
@@ -73,12 +77,25 @@ watch(() => props.eisData, drawPlots)
   <BaseCard title="Plot">
     <div id="nyquist-plot"></div>
       <div id="bode-plot"></div>
+      <button class="model-circuit-button" @click="modelCircuit">Model Circuit</button>
   </BaseCard>
 </template>
 
 <style scoped>
-.placeholder {
-  color: var(--color-text-muted);
-  margin: 0;
+
+.model-circuit-button {
+ background-color: #007bff;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s;
 }
+
+.model-circuit-button:hover {
+  background-color: #0056b3;
+}
+
 </style>

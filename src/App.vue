@@ -36,8 +36,11 @@ const globalEISData = ref<EISData[]>([]) // Samma interface som i DataPanel
 const handleAnalysisComplete = (data: EISData[], name: string) => {
   globalfileName.value = name
   globalEISData.value = data // Spara ner datan centralt
-  activeTab.value = 'plot' // Byt flik
+  activeTab.value = 'plot'
 }
+
+const handleModelCircuit = ( ) => {
+activeTab.value = 'circuit' }
 </script>
 
 <template>
@@ -53,8 +56,8 @@ const handleAnalysisComplete = (data: EISData[], name: string) => {
           ><DataPanel :initial-file-name="globalfileName"
   :initial-data="globalEISData" @analysis-complete="handleAnalysisComplete" />
         </BaseTabPanel>
-        <BaseTabPanel tab-id="plot"><PlotPanel :eis-data="globalEISData" /></BaseTabPanel>
-        <BaseTabPanel tab-id="circuit"><CircuitPanel /></BaseTabPanel>
+        <BaseTabPanel tab-id="plot"><PlotPanel :eis-data="globalEISData" @model-circuit="handleModelCircuit" /></BaseTabPanel>
+        <BaseTabPanel tab-id="circuit"><CircuitPanel :eis-data="globalEISData" /></BaseTabPanel>
         <BaseTabPanel tab-id="fit"><FitPanel /></BaseTabPanel>
         <BaseTabPanel tab-id="export"><ExportPanel /></BaseTabPanel>
       </BaseTabs>

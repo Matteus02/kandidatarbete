@@ -16,9 +16,9 @@ export const useEisStore = defineStore('eis', () => {
   // --- Parsed data ---
   const dataPoints = ref<EisDataPoint[]>([])
 
-  const frequencies = computed(() => dataPoints.value.map((p) => p.frequency))
-  const zReal = computed(() => dataPoints.value.map((p) => p.zReal))
-  const zImag = computed(() => dataPoints.value.map((p) => p.zImag))
+  const frequencies = computed(() => dataPoints.value.map((p) => p['freq/Hz']))
+  const zReal = computed(() => dataPoints.value.map((p) => p['Re(Z)/Ohm']))
+  const zImag = computed(() => dataPoints.value.map((p) => p['-Im(Z)/Ohm']))
 
   // --- Circuit & fit ---
   const selectedCircuit = ref<Circuit | null>(null)
