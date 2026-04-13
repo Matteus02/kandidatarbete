@@ -21,6 +21,8 @@ const onFileChange = (event: Event) => {
     fileName.value = file.name
     Papa.parse(file, {
       header: true,
+      dynamicTyping: true,   // parsar siffror som nummer, inte strängar
+      skipEmptyLines: true,  // ignorerar tomma rader i slutet av filen
       complete: (results) => {
         parsedData.value = results.data as EisDataPoint[]
       },
