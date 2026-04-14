@@ -15,13 +15,17 @@
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
+    "papaparse": "^5.5.3",
     "pinia": "^3.0.4",
-    "vue": "^3.5.31",
-    "vue-router": "^5.0.4"
+    "plotly.js-dist-min": "^3.5.0",
+    "vue": "^3.5.31"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^24.12.0",
+    "@types/papaparse": "^5.5.2",
+    "@types/plotly.js": "^3.0.10",
+    "@types/plotly.js-dist-min": "^2.3.4",
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/eslint-config-typescript": "^14.7.0",
     "@vue/tsconfig": "^0.9.1",
