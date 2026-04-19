@@ -8,6 +8,7 @@ import PlotPanel from '@/components/panels/PlotPanel.vue'
 import CircuitPanel from '@/components/panels/CircuitPanel.vue'
 import FitPanel from '@/components/panels/FitPanel.vue'
 import ExportPanel from '@/components/panels/ExportPanel.vue'
+import ECMmodule from '@/components/modules/ECMmodule.vue'
 
 const tabs = [
   { id: 'data', label: 'Data' },
@@ -15,6 +16,7 @@ const tabs = [
   { id: 'circuit', label: 'Circuit' },
   { id: 'fit', label: 'Fit' },
   { id: 'export', label: 'Export' },
+  { id: 'ecm', label: 'ECM' }
 ] as const satisfies readonly TabItem[]
 
 type TabId = (typeof tabs)[number]['id']
@@ -60,6 +62,7 @@ activeTab.value = 'circuit' }
         <BaseTabPanel tab-id="circuit"><CircuitPanel :eis-data="globalEISData" /></BaseTabPanel>
         <BaseTabPanel tab-id="fit"><FitPanel /></BaseTabPanel>
         <BaseTabPanel tab-id="export"><ExportPanel /></BaseTabPanel>
+        <BaseTabPanel tab-id="ecm"><ECMmodule /></BaseTabPanel>
       </BaseTabs>
     </main>
   </div>
