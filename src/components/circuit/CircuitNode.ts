@@ -1,4 +1,4 @@
-export type ElementType = 'R' | 'C' | 'CPE' | 'W' | 'parallel' |'end';
+export type ElementType = 'R' | 'C' | 'CPE' | 'W' | 'Wo' | 'Ws' | 'L' | 'parallel' | 'end' | 'empty';
 const nodeHeight = 10;
 const horizontalSpacing = 30;
 const nodeWidth = 60;
@@ -8,15 +8,17 @@ export class CircuitNode {
   public id: string;
   public type: ElementType;
   public value: number;
+  public value2: number; // second parameter for two-param elements (Wo: tau, Ws: tau)
   public earlier: CircuitNode | null;
   public next: CircuitNode | null;
   public upperBranch: CircuitNode | null;
   public lowerBranch: CircuitNode | null;
 
-  constructor(id: string, type: ElementType, value: number = 0) {
+  constructor(id: string, type: ElementType, value: number = 0, value2: number = 1.0) {
     this.id = id;
     this.type = type;
     this.value = value;
+    this.value2 = value2;
     this.earlier = null;
     this.next = null;
     this.upperBranch = null;
@@ -56,13 +58,13 @@ export class CircuitNode {
 
   countAmount(): number {
     //console.log(`Counting amount for node ${this.id} of type ${this.type}`);
-    
+
     if (this.type === 'end') return 0;
     if (this.type === 'parallel'){
-        let upperAmount = this.upperBranch ? this.upperBranch.countAmount() : 0;
-        let lowerAmount = this.lowerBranch ? this.lowerBranch.countAmount() : 0;
+        const upperAmount = this.upperBranch ? this.upperBranch.countAmount() : 0;
+        const lowerAmount = this.lowerBranch ? this.lowerBranch.countAmount() : 0;
         return upperAmount + lowerAmount + (this.next?.countAmount() ?? 0);
-    } 
+    }
     return 1 + (this.next?.countAmount() ?? 0);
   }
 
@@ -78,7 +80,7 @@ export class CircuitNode {
     }
     return nodeWidth;
   }
-  
+
   countMaxLength(): number {
     if (this.type === 'end') return 0;
     const currentLength = this.countLength();
@@ -92,7 +94,7 @@ export class CircuitNode {
     if (this.type === 'parallel') {
         const upperHeight = this.upperBranch?.countMaxHeight() || nodeHeight;
         const lowerHeight = this.lowerBranch?.countMaxHeight() || nodeHeight;
-        return parallelSpacing  + upperHeight/2 + lowerHeight/2;        
+        return parallelSpacing  + upperHeight/2 + lowerHeight/2;
     }
     else {
         return nodeHeight;

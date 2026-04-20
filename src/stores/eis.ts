@@ -5,6 +5,7 @@ import type {
   EisDataPoint,
   FitResult,
 } from '@/types/eis'
+import type { PredictionItem } from '@/ai/workerProtocol'
 
 // Central store for EIS app state.
 // All actions are stubs — fill them in as features get built.
@@ -24,6 +25,10 @@ export const useEisStore = defineStore('eis', () => {
   const selectedCircuit = ref<Circuit | null>(null)
   const fitParams = ref<FitResult | null>(null)
   const frequencyRange = ref<{ min: number; max: number } | null>(null)
+
+  // --- AI state ---
+  const aiSuggestedCircuit = ref<string | null>(null)
+  const aiSuggestions = ref<PredictionItem[]>([])
 
   // --- UI state ---
   const isLoading = ref(false)
@@ -59,6 +64,14 @@ export const useEisStore = defineStore('eis', () => {
     frequencyRange.value = range
   }
 
+  function setAiSuggestedCircuit(circuit: string | null): void {
+    aiSuggestedCircuit.value = circuit
+  }
+
+  function setAiSuggestions(suggestions: PredictionItem[]): void {
+    aiSuggestions.value = suggestions
+  }
+
   return {
     // state
     rawCsvText,
@@ -69,6 +82,8 @@ export const useEisStore = defineStore('eis', () => {
     frequencyRange,
     isLoading,
     error,
+    aiSuggestedCircuit,
+    aiSuggestions,
     // computed
     frequencies,
     zReal,
@@ -79,5 +94,7 @@ export const useEisStore = defineStore('eis', () => {
     setSelectedCircuit,
     setFitResult,
     setFrequencyRange,
+    setAiSuggestedCircuit,
+    setAiSuggestions,
   }
 })

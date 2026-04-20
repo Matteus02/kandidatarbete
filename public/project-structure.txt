@@ -1,0 +1,362 @@
+================================================================================
+  EIS ANALYZER — PROJECT STRUCTURE
+  Electrochemical Impedance Spectroscopy Analysis Tool
+  Bachelor Thesis Project
+================================================================================
+
+OVERVIEW
+--------
+A Vue 3 + TypeScript single-page application for analysing EIS measurement
+data. The user can upload a CSV file, view Nyquist and Bode plots, let an AI
+model identify the equivalent circuit model (ECM), build a circuit manually
+using drag-and-drop, adjust parameters, and fit the model to the data.
+
+Technology stack:
+  - Vue 3 (Composition API, <script setup>)
+  - TypeScript
+  - Pinia  (global state store)
+  - Plotly.js  (plots)
+  - ONNX Runtime Web  (AI inference in a web worker)
+  - fmin  (Nelder-Mead optimiser)
+  - PapaParse  (CSV parsing)
+  - Vite  (build tool)
+
+================================================================================
+  src/
+================================================================================
+
+main.ts
+  Entry point. Creates the Vue app, installs the Pinia store, and mounts to
+  the #app element in index.html.
+
+App.vue
+  Root component. Owns the tab bar and the shared EIS data state
+  (globalfileName, globalEISData). Handles tab navigation events from child
+  panels and passes data down via props.
+
+--------------------------------------------------------------------------------
+  src/assets/
+--------------------------------------------------------------------------------
+
+main.css
+  Global CSS reset and design tokens (CSS custom properties for spacing,
+  colours, typography).
+
+project-structure.txt  ← THIS FILE
+
+--------------------------------------------------------------------------------
+  src/types/
+--------------------------------------------------------------------------------
+
+eis.ts
+  Shared TypeScript type definitions for the entire application.
+    EisDataPoint  — one row of measurement data (freq, Re(Z), -Im(Z), |Z|, phase)
+    CircuitElement, CircuitNode, Circuit  — data-model types for circuits
+    FittedParameter, FitResult  — optimisation result types
+    PlotKind  — 'nyquist' | 'bode'
+
+fmin.d.ts
+  Type stub for the untyped `fmin` npm package so TypeScript accepts it.
+
+--------------------------------------------------------------------------------
+  src/stores/
+--------------------------------------------------------------------------------
+
+eis.ts  (Pinia store)
+  Central reactive store shared across all components.
+  State held here:
+    - Raw CSV text and filename
+    - Parsed EIS data points
+    - AI inference results (aiSuggestions, aiSuggestedCircuit)
+    - Fit results and frequency range selection
+  Key actions:
+    setAiSuggestedCircuit(circuit)  — called by AIPanel after the user clicks
+                                      "Apply"; ECMmodule watches this value.
+    setAiSuggestions(predictions)  — stores the full ranked prediction list.
+
+--------------------------------------------------------------------------------
+  src/ai/
+--------------------------------------------------------------------------------
+
+modelConfig.ts
+  Single source of truth for AI model configuration. Change the model file
+  or circuit list here without touching any other file.
+    MODEL_URL         — path to the ONNX model file (served from /models/)
+    MODEL_EXTERNAL_DATA — path to the .data sidecar file, or null
+    KNOWN_CIRCUITS    — the 7 circuit strings the model can predict
+    N_POINTS          — number of log-spaced frequency points (60)
+    CHANNEL_DEFS      — the 5 input channels fed to the CNN
+
+workerProtocol.ts
+  Message types shared between AIPanel.vue and the web worker.
+    InferenceRequest  — sent TO the worker: { type: 'run', data: EisDataPoint[] }
+    PredictionItem    — { circuit: string, confidence: number }
+    InferenceResponse — received FROM the worker: result or error variant
+
+--------------------------------------------------------------------------------
+  src/workers/
+--------------------------------------------------------------------------------
+
+eisInference.worker.ts
+  Runs ONNX model inference in a separate thread so the UI stays responsive.
+  Steps performed on each 'run' message:
+    1. Sort data high → low frequency.
+    2. Interpolate to a fixed 60-point log-spaced frequency grid.
+    3. Build a [1, 5, 60] tensor with 5 channels:
+         ch0  Re(Z)
+         ch1  Im(Z)  (negated: file stores -Im(Z))
+         ch2  log10(frequency grid)
+         ch3  d(unwrapped phase) / d(log10 f)  — phase derivative
+         ch4  d(log|Z|) / d(log10 f)  — Bode slope
+    4. Per-channel z-score normalisation.
+    5. Run inference via ONNX Runtime Web (WASM backend).
+    6. Softmax the logits → confidence scores.
+    7. Post { type: 'result', predictions } back to AIPanel.
+
+--------------------------------------------------------------------------------
+  src/utils/
+--------------------------------------------------------------------------------
+
+complexMath.ts
+  Pure complex-number arithmetic. No Vue, no side effects.
+  Exports:
+    Complex           — type { re: number; im: number }
+    add(a, b)         — addition
+    mul(a, b)         — multiplication
+    div(a, b)         — division
+    csqrt(z)          — complex square root (polar form)
+    cexp(z)           — complex exponential
+    ccosh(z)          — complex hyperbolic cosine
+    csinh(z)          — complex hyperbolic sine
+
+impedance.ts
+  Maps physical element parameters + angular frequency ω to complex impedance Z.
+  Imports complex arithmetic from complexMath.ts.
+  Exports:
+    parallel(a, b)     — parallel combination Z = (Z1·Z2)/(Z1+Z2)
+    zR(R)              — resistor
+    zC(C, ω)           — capacitor
+    zCPE(Q, n, ω)      — constant phase element
+    zW(A, ω)           — Warburg (semi-infinite diffusion)
+    zL(L, ω)           — inductor
+    zWo(Rw, τ, ω)      — Warburg Open  (finite-length, reflective boundary)
+    zWs(Rw, τ, ω)      — Warburg Short (finite-length, transmissive boundary)
+
+circuitImpedance.ts
+  Calculates Z(ω) for an entire CircuitNode tree by recursive traversal.
+  Imports element formulas from impedance.ts; typed for CircuitNode.
+  Exports:
+    CPE_N              — fixed CPE exponent (0.85)
+    zOfNode(node, ω)   — impedance of a single node or parallel block
+    zOfChain(node, ω)  — total series impedance of a chain (follows .next)
+
+circuitParser.ts
+  Converts AI circuit strings into CircuitNode trees.
+  Input format example:  "R0-p(R1,CPE0)-W0"
+    - "-" separates series elements at the top level
+    - "p(upper, lower)" describes a parallel block
+    - element IDs start with the type letter (R, C, CPE, Wo, Ws, W, L)
+  Exports:
+    buildTreeFromString(circuitString)  — returns the root CircuitNode
+
+--------------------------------------------------------------------------------
+  src/composables/
+--------------------------------------------------------------------------------
+
+useCircuitTree.ts
+  Vue composable. Owns all circuit tree state and every structural mutation.
+  This is the single place where nodes are created, moved, or deleted.
+  Returns:
+    rootNode              — Ref<CircuitNode>  (the tree root)
+    renderVersion         — Ref<number>  (incremented on each change; used as SVG :key)
+    collectNodes(root)    — returns all leaf nodes with editable parameters
+    resetCounters()       — resets ID counters to 20 (called after AI load)
+    handleNodeDrop(...)   — inserts a new node before / replacing / after a target
+    insertIntoEmptyBranch(...)  — fills an empty parallel branch slot
+    deleteNode(node)      — removes a node from the tree
+
+useCircuitFitting.ts
+  Vue composable. Provides parameter estimation and curve fitting.
+  Takes rootNode, eisData getter, collectNodes, zOfChain, and an onRedraw
+  callback as arguments so it stays decoupled from the DOM.
+  Returns:
+    isFitting             — Ref<boolean>  (true while the optimiser is running)
+    estimateInitialValues()  — reads Nyquist features to seed all parameters:
+                               zHF → first R,  arc diameter → parallel R + C/CPE,
+                               low-frequency tail → Warburg coefficient
+    fitModel()            — Nelder-Mead (downhill simplex) in log-space.
+                            Log-space ensures resistances (100s Ω) and
+                            capacitances (1e-6 F) have equal numerical weight.
+                            Cost function uses modulus weighting (error/|Z|²).
+
+--------------------------------------------------------------------------------
+  src/components/ui/
+--------------------------------------------------------------------------------
+
+BaseTabs.vue
+  Tab bar container. Accepts a readonly `tabs` array and a v-model for the
+  active tab ID. Provides the ActiveTabKey injection to child panels.
+
+BaseTabPanel.vue
+  Wraps tab content. Uses v-if (not v-show) so inactive panels unmount fully.
+  NOTE: this means components inside must use { immediate: true } watchers
+  if they need to react to store values set while inactive.
+
+BaseCard.vue
+  Generic card wrapper with an optional title slot and header/footer slots.
+
+BaseButton.vue
+  Reusable button with primary / secondary / ghost variants.
+
+BaseFileInput.vue
+  Custom styled file input. Emits a File | File[] | null on change.
+
+tabsContext.ts
+  Exports the ActiveTabKey injection symbol and the TabItem interface.
+
+--------------------------------------------------------------------------------
+  src/components/panels/
+--------------------------------------------------------------------------------
+
+DataPanel.vue
+  CSV upload and parsing panel (Tab: Data).
+  Uses PapaParse to parse the uploaded file and emits 'analysis-complete'
+  with the parsed EisDataPoint array and filename to App.vue.
+
+PlotPanel.vue
+  Nyquist and Bode magnitude plots of the raw measurement data (Tab: Plot).
+  Uses Plotly.js. Emits 'model-circuit' when the user clicks "Model Circuit",
+  which causes App.vue to navigate to the AI tab.
+
+AIPanel.vue
+  AI-powered circuit detection panel (Tab: AI).
+  Lazily creates an eisInference.worker on the first "Detect ECM" click.
+  Displays ranked predictions (circuit string + confidence bar).
+  "Apply" button calls store.setAiSuggestedCircuit() and emits
+  'apply-circuit', causing App.vue to navigate to the ECM tab.
+
+FitPanel.vue
+  Placeholder (Tab: Fit). Reserved for a dedicated fitting results view.
+
+ExportPanel.vue
+  Placeholder (Tab: Export). Reserved for CSV / image export functionality.
+
+--------------------------------------------------------------------------------
+  src/components/modules/
+--------------------------------------------------------------------------------
+
+ECMmodule.vue
+  The main ECM builder module (Tab: ECM). Acts as the "glue" component:
+    - Mounts Plotly Nyquist + Bode plots and redraws them when needed.
+    - Pulls in useCircuitTree and useCircuitFitting composables.
+    - Provides drag-drop handlers to CircuitRenderer via inject/provide.
+    - Watches store.aiSuggestedCircuit (immediate: true) to load AI circuits.
+    - Delegates palette UI to CircuitPalette, parameter inputs to ParameterEditor.
+
+--------------------------------------------------------------------------------
+  src/components/circuit/
+--------------------------------------------------------------------------------
+
+CircuitNode.ts
+  The core data structure for the circuit tree.
+  Class CircuitNode:
+    id           — unique string label shown on the symbol (e.g. "R0", "CPE1")
+    type         — ElementType: R | C | CPE | W | Wo | Ws | L | parallel | end | empty
+    value        — primary parameter (resistance, capacitance, etc.)
+    value2       — second parameter used by Wo and Ws (diffusion time constant τ)
+    next/earlier — doubly-linked series chain pointers
+    upperBranch/lowerBranch — parallel branch child pointers
+  Methods:
+    countLength() / countMaxLength()  — horizontal pixel span for SVG layout
+    countHeight() / countMaxHeight()  — vertical pixel span for SVG layout
+    removeNode()                      — detach from the tree
+
+CircuitRenderer.vue  (recursive)
+  Renders a CircuitNode tree as an SVG. Recursively renders .next and
+  branch nodes. Handles all drag-drop hit areas (before / replace / after
+  zones, empty branch drop zones). Injects handleNodeDrop,
+  insertIntoEmptyBranch, and deleteNode from the ancestor ECMmodule.
+
+CircuitPalette.vue
+  The element palette bar shown below the circuit canvas. Each item is
+  draggable and sets its type in dataTransfer so CircuitRenderer can receive
+  it. Also shows the "how to use" instructions.
+
+ParameterEditor.vue
+  Renders a flex grid of labeled number inputs, one per editable node.
+  Two-parameter elements (Wo, Ws) receive a second input for τ.
+  Emits 'change' events (unidirectional data flow — does not mutate nodes).
+
+CircuitValue.vue
+  Alternative value display component (legacy; not used by ECMmodule).
+
+--------------------------------------------------------------------------------
+  src/components/circuit/symbols/
+--------------------------------------------------------------------------------
+
+Each file is a small SVG component that accepts a `label` prop (the node ID).
+The label is rendered below (or beside) the symbol.
+
+  ResistorSymbol.vue      — zigzag polyline  (red)
+  CapacitorSymbol.vue     — two parallel lines  (blue)
+  CpeSymbol.vue           — rounded box with "Q"  (orange)
+  WarburgSymbol.vue       — rounded box with "W"  (teal)
+  WarburgOpenSymbol.vue   — rounded box with "Wo"  (dark teal)
+  WarburgShortSymbol.vue  — rounded box with "Ws"  (green)
+  InductorSymbol.vue      — four upward arcs (coil)  (purple)
+  ParallellSymbol.vue     — two vertical lines  (used in the palette only)
+
+================================================================================
+  DATA FLOW SUMMARY
+================================================================================
+
+  [CSV file]
+      │  PapaParse
+      ▼
+  DataPanel  ──emit 'analysis-complete'──▶  App.vue (globalEISData)
+                                                │  props
+                                         ┌──────┴──────────────────┐
+                                         ▼                          ▼
+                                    PlotPanel                  AIPanel
+                                    (Plotly)              (web worker → ONNX)
+                                         │                          │
+                               emit 'model-circuit'       emit 'apply-circuit'
+                                         │                          │
+                                         ▼                          ▼
+                                    App.vue ──── store.setAiSuggestedCircuit()
+                                                        │
+                                                        ▼
+                                                  ECMmodule
+                                              (watch, immediate)
+                                                        │
+                                              buildTreeFromString()
+                                                        │
+                                           ┌────────────┴────────────┐
+                                           ▼                          ▼
+                                   CircuitRenderer            ParameterEditor
+                                  (SVG + drag-drop)          (parameter inputs)
+                                           │                          │
+                                    useCircuitTree            useCircuitFitting
+                                  (tree mutations)        (estimate + fit model)
+                                           │                          │
+                                           └────────────┬────────────┘
+                                                        ▼
+                                              zOfChain (circuitImpedance.ts)
+                                                        │
+                                                   Plotly plots
+
+================================================================================
+  KNOWN CIRCUITS (AI model output classes)
+================================================================================
+
+  Index  Circuit string                          Elements
+  ─────  ──────────────────────────────────────  ─────────────────────────────
+  0      R0-p(R1,CPE0)                           R, parallel(R, CPE)
+  1      R0-p(R1,CPE0)-W0                        + semi-infinite Warburg
+  2      R0-p(R1,CPE0)-Wo0                       + finite Warburg (open)
+  3      R0-p(R1,CPE0)-Ws0                       + finite Warburg (short)
+  4      R0-p(R1,CPE0)-p(R2,CPE1)               two RC arcs in series
+  5      R0-p(R1,CPE0)-p(R2,CPE1)-W0            two arcs + Warburg
+  6      R0-L0-p(R1,CPE0)-p(R2,CPE1)            inductive loop + two arcs
+
+================================================================================

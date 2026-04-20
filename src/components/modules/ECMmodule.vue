@@ -1,262 +1,288 @@
 <script setup lang="ts">
-import { ref, onMounted, provide, render } from 'vue'
-import ResistorSymbol from '@/components/circuit/ResistorSymbol.vue'
-import CapacitorSymbol from '@/components/circuit/CapacitorSymbol.vue'
-import CpeSymbol from '@/components/circuit/CpeSymbol.vue'
-import WarburgSymbol from '@/components/circuit/WarburgSymbol.vue'
-import ParallellSymbol from '../circuit/ParallellSymbol.vue'
-import { CircuitNode } from '@/components/circuit/CircuitNode'
-import type { ElementType } from '@/components/circuit/CircuitNode'
+// ECM Builder — Interactive equivalent circuit modelling for EIS data.
+//
+// Responsibilities of this component (the "glue"):
+//   1. Owns the Plotly plots (Nyquist + Bode) and redraws them when needed.
+//   2. Wires up the three sub-systems via composables and sub-components.
+//   3. Watches the Pinia store for AI-suggested circuits and loads them.
+//
+// Logic is delegated to:
+//   useCircuitTree    — circuit tree state, drag-drop, node mutations
+//   useCircuitFitting — heuristic initialisation and Nelder-Mead fitting
+//   CircuitPalette    — drag-and-drop element palette UI
+//   ParameterEditor   — parameter input grid UI
+
+import { ref, computed, watch, onMounted, provide } from 'vue'
+import Plotly from 'plotly.js-dist-min'
+import BaseCard        from '@/components/ui/BaseCard.vue'
 import CircuitRenderer from '@/components/circuit/CircuitRenderer.vue'
-import CircuitValue from '@/components/circuit/CircuitValue.vue'
-import { parallel } from '@/utils/impedance'
+import CircuitPalette  from '@/components/circuit/CircuitPalette.vue'
+import ParameterEditor from '@/components/circuit/ParameterEditor.vue'
+import type { EisDataPoint } from '@/types/eis'
+import type { CircuitNode }  from '@/components/circuit/CircuitNode'
+import { useEisStore }       from '@/stores/eis'
+import { useCircuitTree }    from '@/composables/useCircuitTree'
+import { useCircuitFitting } from '@/composables/useCircuitFitting'
+import { zOfChain }          from '@/utils/circuitImpedance'
+import { buildTreeFromString } from '@/utils/circuitParser'
 
-const svgHeight = 250;
-const svgWidth = 800;
-const buttonWidth = 100;
-const buttonHeight = 50;
+const props = defineProps<{ eisData: EisDataPoint[] }>()
+const store = useEisStore()
 
-const renderVersion = ref(0)
+// ── Circuit tree ─────────────────────────────────────────────────────────────
+// rootNode    — the root CircuitNode (reactive; changing it triggers re-render)
+// renderVersion — counter incremented on every tree change; used as SVG :key
+// collectNodes  — walks the tree and returns all leaf nodes with parameters
+// resetCounters — called after an AI circuit is loaded to avoid ID collisions
 
-const RIdCounter = ref(1);
-const CIdCounter = ref(0);
-const CpeIdCounter = ref(0);
-const WIdCounter = ref(0);
+const {
+  rootNode, renderVersion, collectNodes, resetCounters,
+  handleNodeDrop, insertIntoEmptyBranch, deleteNode,
+} = useCircuitTree()
 
-const rootNode = ref(new CircuitNode('R0', 'R', 10));
+// Provide drop handlers and drag state to CircuitRenderer.
+// CircuitRenderer is deeply nested (it recurses into itself), so inject/provide
+// is cleaner than passing the handlers as props at every level.
+provide('handleNodeDrop', handleNodeDrop)
+provide('insertIntoEmptyBranch', insertIntoEmptyBranch)
+provide('deleteNode', deleteNode)
 
-const handleDragStart = (event: DragEvent, type: ElementType) => {
-  console.log('Startar drag av typ:', type);
-  if (event.dataTransfer) {
-    event.dataTransfer.setData('componentType', type);
-    event.dataTransfer.effectAllowed = 'copy';
-  }
-};
+// Tracks whether the user is currently dragging a palette element.
+// Provided to CircuitRenderer so drop zones are only visible during a drag.
+const isDragging = ref(false)
+provide('isDragging', isDragging)
 
-const handleNodeDrop = (targetNode: CircuitNode, newType: ElementType, action: 'before' | 'replace' | 'after') => {
-  let newId = '';
+// All leaf nodes (R, C, CPE, W …) shown in the parameter editor.
+// renderVersion is read here so Vue tracks it as a dependency.
+const editableNodes = computed(() => {
+  renderVersion.value
+  return collectNodes(rootNode.value)
+})
 
-  if (newType === 'R') {
-    newId = `R${RIdCounter.value++}` as ElementType;
-  } else if (newType === 'C') {
-    newId = `C${CIdCounter.value++}` as ElementType;
-  } else if (newType === 'CPE') {
-    newId = `CPE${CpeIdCounter.value++}` as ElementType;
-  } else if (newType === 'W') {
-    newId = `W${WIdCounter.value++}` as ElementType;
-  }
+// ── Parameter changes ────────────────────────────────────────────────────────
 
-  
-  const newNode = new CircuitNode(newId, newType, 0)
-
-  if (action === 'before') {
-    newNode.setNext(targetNode);
-    newNode.setEarlier(targetNode.earlier);
-
-    if (targetNode === rootNode.value) rootNode.value = newNode;
-    else if (targetNode.earlier?.upperBranch === targetNode) targetNode.earlier.upperBranch = newNode;
-    else if (targetNode.earlier?.lowerBranch === targetNode) targetNode.earlier.lowerBranch = newNode;
-    else if (targetNode.earlier) targetNode.earlier.setNext(newNode);
-
-    targetNode.setEarlier(newNode);
-  } 
-  
-  else if (action === 'replace') {
-    newNode.setEarlier(targetNode.earlier);
-    newNode.setNext(targetNode.next);
-
-    if (targetNode === rootNode.value) rootNode.value = newNode;
-    else if (targetNode.earlier?.upperBranch === targetNode) targetNode.earlier.upperBranch = newNode;
-    else if (targetNode.earlier?.lowerBranch === targetNode) targetNode.earlier.lowerBranch = newNode;
-    else if (targetNode.earlier) targetNode.earlier.setNext(newNode);
-
-    if (targetNode.next) targetNode.next.setEarlier(newNode);
-  } 
-  
-  else if (action === 'after') {
-    const oldNext = targetNode.next;
-    targetNode.setNext(newNode);
-    newNode.setEarlier(targetNode);
-
-    if (oldNext) {
-      newNode.setNext(oldNext);
-      oldNext.setEarlier(newNode);
-    }
-  }
-
-  renderVersion.value++
+function onParamChange(node: CircuitNode, param: 'value' | 'value2', value: number) {
+  node[param] = value
+  if (showModel.value) drawPlots()   // live-update the model overlay
 }
 
-const insertIntoEmptyBranch = (parentNode: CircuitNode, branch: 'upper' | 'lower', newType: string) => {
-  let newId = '';
+// ── Plots (Nyquist + Bode) ───────────────────────────────────────────────────
 
-  if (newType === 'R') {
-    newId = `R${RIdCounter.value++}` as ElementType;
-  } else if (newType === 'C') {
-    newId = `C${CIdCounter.value++}` as ElementType;
-  } else if (newType === 'CPE') {
-    newId = `CPE${CpeIdCounter.value++}` as ElementType;
-  } else if (newType === 'W') {
-    newId = `W${WIdCounter.value++}` as ElementType;
+const showModel = ref(false)
+
+function drawPlots() {
+  if (props.eisData.length === 0) return
+
+  // ── Measurement traces ───────────────────────────────────────────────────
+  const measNyquist = {
+    x: props.eisData.map(d => d['Re(Z)/Ohm']),
+    y: props.eisData.map(d => d['-Im(Z)/Ohm']),
+    mode: 'markers' as const,
+    marker: { size: 6, color: '#007bff' },
+    type: 'scatter' as const,
+    name: 'Measurement',
   }
-  const newNode = new CircuitNode(newId, newType as ElementType, 10);
-  
-  newNode.setEarlier(parentNode);
-  if (branch === 'upper') parentNode.upperBranch = newNode;
-  else parentNode.lowerBranch = newNode;
-  
-  renderVersion.value++;
-};
+  const measBode = {
+    x: props.eisData.map(d => d['freq/Hz']),
+    y: props.eisData.map(d => d['|Z|/Ohm']),
+    mode: 'lines+markers' as const,
+    type: 'scatter' as const,
+    name: 'Measurement',
+  }
 
+  // ── Plot layouts ─────────────────────────────────────────────────────────
+  const nyqLayout = {
+    title: { text: 'Nyquist Plot' },
+    xaxis: { title: { text: "Z' / Ω" }, zeroline: true },
+    yaxis: { title: { text: "-Z'' / Ω" }, zeroline: true, scaleanchor: 'x' as const, scaleratio: 1 },
+    height: 380, margin: { t: 40, r: 20, b: 50, l: 60 }, showlegend: true,
+  }
+  const bodeLayout = {
+    title: { text: 'Bode Plot (Magnitude)' },
+    xaxis: { title: { text: 'Frequency / Hz' }, type: 'log' as const },
+    yaxis: { title: { text: '|Z| / Ω'        }, type: 'log' as const },
+    height: 380, margin: { t: 40, r: 20, b: 50, l: 60 }, showlegend: true,
+  }
 
-const deleteNode = (node: CircuitNode) => {
-  console.log('Tar bort nod från trädet:', node.id)
+  if (showModel.value) {
+    // ── Model traces (computed from the current circuit tree) ─────────────
+    const modelRe: number[] = []
+    const modelIm: number[] = []
+    const modelMag: number[] = []
+    for (const d of props.eisData) {
+      const omega = 2 * Math.PI * d['freq/Hz']
+      const z     = zOfChain(rootNode.value, omega)
+      modelRe.push(z.re)
+      modelIm.push(-z.im)
+      modelMag.push(Math.sqrt(z.re * z.re + z.im * z.im))
+    }
 
+    const modelNyq  = { x: modelRe,  y: modelIm,  mode: 'lines' as const, line: { color: '#e74c3c', width: 2 }, type: 'scatter' as const, name: 'Model' }
+    const modelBode = { x: measBode.x, y: modelMag, mode: 'lines' as const, line: { color: '#e74c3c', width: 2 }, type: 'scatter' as const, name: 'Model' }
 
-  //if (node.type === 'R') {
-  //  RIdCounter.value--;
-  //} else if (node.type === 'C') {
-  //  CIdCounter.value--;
-  //} else if (node.type === 'CPE') {
-  //  CpeIdCounter.value-- ;
-  //} else if (node.type === 'W') {
-  //  WIdCounter.value--;
-  //}
-
-  if (node === rootNode.value) {    
-    rootNode.value = node.next || new CircuitNode('end', 'end');
+    Plotly.newPlot('ecm-nyquist', [measNyquist, modelNyq],  nyqLayout)
+    Plotly.newPlot('ecm-bode',   [measBode,    modelBode], bodeLayout)
   } else {
-    node.removeNode();
+    Plotly.newPlot('ecm-nyquist', [measNyquist], nyqLayout)
+    Plotly.newPlot('ecm-bode',   [measBode],    bodeLayout)
   }
-  renderVersion.value++;
-};
+}
 
-provide('handleNodeDrop', handleNodeDrop);
-provide('insertIntoEmptyBranch', insertIntoEmptyBranch);
-provide('deleteNode', deleteNode);
+// ── Curve fitting ────────────────────────────────────────────────────────────
 
+// onRedraw is called by the fitting composable after each action that
+// changes node values (estimation or fitting) so the plots stay in sync.
+function onRedraw() {
+  renderVersion.value++
+  if (showModel.value) drawPlots()
+}
 
+const { isFitting, estimateInitialValues, fitModel } = useCircuitFitting(
+  rootNode,
+  () => props.eisData,
+  collectNodes,
+  zOfChain,
+  onRedraw,
+)
 
+// ── AI suggestion integration ────────────────────────────────────────────────
 
+const aiAppliedCircuit = ref<string | null>(null)
 
-onMounted(() => {
-  const c1 = new CircuitNode('C1', 'C', 0.001);
-  const endNode = new CircuitNode('end', 'end', 0);
-  const parallelNode = new CircuitNode('p1', 'parallel', 0);
-  const c2 = new CircuitNode('C2', 'C', 0.001);
-  const c3 = new CircuitNode('C3', 'C', 0.001);
-  const parallel2 = new CircuitNode('p2', 'parallel', 0);
-  const r2 = new CircuitNode('R2', 'R', 100);
+// immediate: true is required because ECMmodule is wrapped in a v-if tab panel.
+// When the tab becomes active the component mounts fresh, so the watcher would
+// otherwise miss a store value that was already set before the mount.
+watch(
+  () => store.aiSuggestedCircuit,
+  (circuitStr) => {
+    if (!circuitStr) return
+    rootNode.value     = buildTreeFromString(circuitStr)
+    aiAppliedCircuit.value = circuitStr
+    resetCounters()          // avoid ID collisions with user-added elements
+    renderVersion.value++
+  },
+  { immediate: true },
+)
 
-  rootNode.value.setNext(r2);
-  r2.setEarlier(rootNode.value);
-  r2.setNext(parallelNode);
-
-
-  
-  parallelNode.setEarlier(r2)
-
-  parallelNode.setUpperBranch(c2);
-  c2.setEarlier(parallelNode);
-
-  c2.setNext(c3);
-  c3.setEarlier(c2);
-
-  parallelNode.setLowerBranch(parallel2);
-  parallel2.setEarlier(parallelNode);
-
-  parallelNode.setNext(c1);
-  c1.setEarlier(parallelNode);
-  c1.setNext(endNode);
-
-  
-});
+onMounted(drawPlots)
+watch(() => props.eisData, drawPlots)
 </script>
 
 <template>
-<p>ECM Module</p>
+  <BaseCard title="ECM Builder" @dragstart.capture="isDragging = true" @dragend.capture="isDragging = false">
 
-    <div class="circuitBox">
-      <svg class="circuit-svg" :width="svgWidth" :height="svgHeight" style="overflow: visible" :key="renderVersion">
-        <CircuitRenderer 
-        v-if="rootNode" 
-        :node="rootNode" 
-        :x="50" 
-        :y="svgHeight / 2" 
-        />
-      </svg>
-
-      <div class="buttonBox" :style="{display: 'flex', width: (buttonWidth * 5) + 'px', height: buttonHeight + 'px'}">
-        <div class="drag-handle" draggable="true" @dragstart="handleDragStart($event, 'R')">
-          <svg class="componentButton" :width="buttonWidth" :height="buttonHeight" draggable="true" @dragstart="handleDragStart($event, 'R')" style="cursor: grab;">
-            <rect width="100%" height="100%" fill="transparent" />
-            <g class="circuitIcon" :transform="`translate(20, ${buttonHeight / 2 - 2})`">
-              <ResistorSymbol label="" />
-            </g>
-          </svg>
-        </div>
-
-        <div class="drag-handle" draggable="true" @dragstart="handleDragStart($event, 'C')">
-          <svg class="componentButton" :width="buttonWidth" :height="buttonHeight" draggable="true" @dragstart="handleDragStart($event, 'C')" style="cursor: grab;">
-              <rect width="100%" height="100%" fill="transparent" />
-              <g class="circuitIcon" :transform="`translate(20, ${buttonHeight / 2 - 2})`">
-                <CapacitorSymbol label="" />
-              </g>
-          </svg>
-        </div>
-        <div class="drag-handle" draggable="true" @dragstart="handleDragStart($event, 'CPE')">
-          <svg class="componentButton" :width="buttonWidth" :height="buttonHeight">
-              <rect width="100%" height="100%" fill="transparent" />
-              <g class="circuitIcon":transform="`translate(20, ${buttonHeight / 2 - 2})`">
-                <CpeSymbol label="" />
-              </g>
-          </svg>
-        </div>
-
-        <div class="drag-handle" draggable="true" @dragstart="handleDragStart($event, 'W')">
-          <svg class="componentButton" :width="buttonWidth" :height="buttonHeight">
-              <rect width="100%" height="100%" fill="transparent" />
-              <g :transform="`translate(20, ${buttonHeight / 2 - 2})`">
-                <WarburgSymbol label="" />
-              </g>
-          </svg>
-        </div>
-
-        <div class="drag-handle" draggable="true" @dragstart="handleDragStart($event, 'parallel')">
-          <svg class="componentButton" :width="buttonWidth" :height="buttonHeight">
-              <rect width="100%" height="100%" fill="transparent" />
-              <g :transform="`translate(20, ${buttonHeight / 2 - 2})`">
-                <ParallellSymbol />
-              </g>
-          </svg>
-        </div>
-      </div>
-
-      
+    <!-- Nyquist and Bode plots -->
+    <div class="plot-row">
+      <div id="ecm-nyquist" class="plot" />
+      <div id="ecm-bode"    class="plot" />
     </div>
 
-    <div class="valueBox">
-      <svg :width="svgWidth" :height="svgHeight" style="overflow: visible">
-        <CircuitValue :node="rootNode" :x="10" :y="10" :amount="0" />
-      </svg>
-        
-
+    <!-- Banner shown when a circuit was loaded from the AI tab -->
+    <div v-if="aiAppliedCircuit" class="ai-banner">
+      AI suggestion loaded: <code>{{ aiAppliedCircuit }}</code>
     </div>
+
+    <!-- SVG circuit canvas (key forces full re-render on every tree change) -->
+    <div class="section-label">Circuit</div>
+    <div class="canvas-wrap">
+      <svg class="circuit-svg" width="900" height="250" style="overflow: visible" :key="renderVersion">
+        <CircuitRenderer :node="rootNode" :x="50" :y="125" />
+      </svg>
+    </div>
+
+    <!-- Drag-and-drop element palette + usage instructions -->
+    <CircuitPalette />
+
+    <!-- Editable parameter grid -->
+    <div class="section-label" style="margin-top: 16px;">
+      Parameters
+      <span class="hint">(edit manually, or use the buttons below)</span>
+    </div>
+    <ParameterEditor :nodes="editableNodes" @change="onParamChange" />
+
+    <!-- Action buttons -->
+    <div class="plot-buttons">
+      <button class="btn" :disabled="props.eisData.length === 0"
+        @click="showModel = true; drawPlots()">
+        Plot Circuit
+      </button>
+      <button class="btn btn--secondary" :disabled="props.eisData.length === 0"
+        @click="estimateInitialValues">
+        Estimate Initial Values
+      </button>
+      <button class="btn" :disabled="isFitting || props.eisData.length === 0"
+        @click="fitModel">
+        {{ isFitting ? 'Fitting…' : 'Fit Parameters (Auto)' }}
+      </button>
+    </div>
+
+    <p v-if="props.eisData.length === 0" class="no-data-hint">
+      Load EIS data in the Data tab first.
+    </p>
+
+  </BaseCard>
 </template>
 
 <style scoped>
-.circuit-svg {
-  border: 1px solid #000000;
-  border-radius: 12px;
+.plot-row { display: flex; gap: 10px; justify-content: center; }
+.plot     { flex: 1; min-width: 0; }
+
+.section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  margin: 14px 0 6px;
 }
 
-.drag-handle {
-  cursor: grab;
-  user-select: none;
-  -webkit-user-select: none;
-  background-color: #f8f8f8; /* Frivilligt: Ger knapparna en liten bakgrund */
+.canvas-wrap {
   border: 1px solid #ddd;
-  border-radius: 6px;
-  margin: 2px;
+  border-radius: 8px;
+  background: #fafafa;
+  overflow-x: auto;
+  padding: 8px 0;
+}
+
+.circuit-svg { display: block; }
+
+.plot-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 22px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.btn:hover:not(:disabled)           { background: #0056b3; }
+.btn:disabled                       { opacity: 0.5; cursor: not-allowed; }
+.btn--secondary                     { background: #6c757d; }
+.btn--secondary:hover:not(:disabled){ background: #495057; }
+
+.hint {
+  font-weight: 400;
+  font-size: 11px;
+  color: #aaa;
+  margin-left: 6px;
+}
+
+.no-data-hint { margin-top: 6px; font-size: 13px; color: #888; }
+
+.ai-banner {
+  padding: 8px 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #1e40af;
+  margin-bottom: 10px;
 }
 </style>

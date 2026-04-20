@@ -1,3 +1,0 @@
-//Dependencies added
-plotly.js-dist-min + @types/plotly.js
-papaparse + @types/papaparse
