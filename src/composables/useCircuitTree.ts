@@ -30,7 +30,9 @@ export function useCircuitTree() {
   const renderVersion = ref(0)
 
   // Per-type ID counters ensure every node has a unique label (R0, R1, CPE0 …)
-  const counters = { R: 1, C: 0, CPE: 0, W: 0, P: 1 }
+  // Each element type has its own independent counter so IDs are always
+  // predictable: W0, Wo0, Ws0, L0 are all separate sequences.
+  const counters = { R: 1, C: 0, CPE: 0, W: 0, Wo: 0, Ws: 0, L: 0, P: 1 }
 
   function nextId(type: ElementType): string {
     switch (type) {
@@ -38,19 +40,29 @@ export function useCircuitTree() {
       case 'C':        return `C${counters.C++}`
       case 'CPE':      return `CPE${counters.CPE++}`
       case 'W':        return `W${counters.W++}`
-      case 'Wo':       return `Wo${counters.W++}`
-      case 'Ws':       return `Ws${counters.W++}`
-      case 'L':        return `L${counters.C++}`
+      case 'Wo':       return `Wo${counters.Wo++}`
+      case 'Ws':       return `Ws${counters.Ws++}`
+      case 'L':        return `L${counters.L++}`
       case 'parallel': return `p${counters.P++}`
       default:         return `el${counters.R++}`
     }
   }
 
-  // Set all counters to 20 so elements added after an AI-loaded circuit
-  // don't produce IDs that collide with the loaded element names.
+  // Scan the loaded tree and set each counter to (highest existing numeric suffix + 1)
+  // so newly-added elements never collide with AI-loaded node IDs.
   function resetCounters() {
-    counters.R = 20; counters.C = 20; counters.CPE = 20
-    counters.W = 20; counters.P = 20
+    counters.R = 0; counters.C = 0; counters.CPE = 0
+    counters.W = 0; counters.Wo = 0; counters.Ws = 0
+    counters.L = 0; counters.P = 0
+
+    const all = collectNodes(rootNode.value)
+    for (const node of all) {
+      const match = node.id.match(/^([A-Za-z]+)(\d+)$/)
+      if (!match || !match[1] || !match[2]) continue
+      const prefix = match[1] as keyof typeof counters
+      const num    = parseInt(match[2], 10) + 1
+      if (prefix in counters && num > counters[prefix]) counters[prefix] = num
+    }
   }
 
   // ── Tree traversal ────────────────────────────────────────────────────────

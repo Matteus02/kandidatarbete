@@ -42,8 +42,8 @@ function onInput(node: CircuitNode, param: 'value' | 'value2', raw: string) {
   <div class="param-grid">
     <template v-for="node in nodes" :key="node.id">
 
-      <!-- Primary parameter (all elements) -->
-      <div class="param-item">
+      <!-- Single-parameter elements (R, C, CPE, W, L) -->
+      <div v-if="!UNITS2[node.type as ElementType]" class="param-item">
         <label class="param-label">
           {{ node.id }}
           <span class="param-unit">{{ UNITS[node.type as ElementType] ?? '' }}</span>
@@ -57,19 +57,33 @@ function onInput(node: CircuitNode, param: 'value' | 'value2', raw: string) {
         />
       </div>
 
-      <!-- Second parameter for two-parameter elements (Wo, Ws) -->
-      <div v-if="UNITS2[node.type as ElementType]" class="param-item">
-        <label class="param-label">
-          {{ node.id }}
-          <span class="param-unit">{{ UNITS2[node.type as ElementType] }}</span>
-        </label>
-        <input
-          class="param-input"
-          type="number"
-          :value="node.value2"
-          step="any"
-          @change="(e) => onInput(node, 'value2', (e.target as HTMLInputElement).value)"
-        />
+      <!-- Two-parameter elements (Wo, Ws): grouped card showing ID once -->
+      <div v-else class="param-group">
+        <div class="param-group-title">{{ node.id }}</div>
+        <div class="param-item">
+          <label class="param-label">
+            <span class="param-unit">{{ UNITS[node.type as ElementType] }}</span>
+          </label>
+          <input
+            class="param-input"
+            type="number"
+            :value="node.value"
+            step="any"
+            @change="(e) => onInput(node, 'value', (e.target as HTMLInputElement).value)"
+          />
+        </div>
+        <div class="param-item">
+          <label class="param-label">
+            <span class="param-unit">{{ UNITS2[node.type as ElementType] }}</span>
+          </label>
+          <input
+            class="param-input"
+            type="number"
+            :value="node.value2"
+            step="any"
+            @change="(e) => onInput(node, 'value2', (e.target as HTMLInputElement).value)"
+          />
+        </div>
       </div>
 
     </template>
@@ -80,7 +94,7 @@ function onInput(node: CircuitNode, param: 'value' | 'value2', raw: string) {
 .param-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 14px;
 }
 
@@ -88,31 +102,57 @@ function onInput(node: CircuitNode, param: 'value' | 'value2', raw: string) {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 140px;
+  width: 110px;
 }
 
 .param-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .param-unit {
   font-weight: 400;
   color: #888;
-  margin-left: 4px;
+  margin-left: 3px;
 }
 
 .param-input {
   border: 1px solid #ccc;
   border-radius: 4px;
-  padding: 4px 6px;
-  font-size: 13px;
+  padding: 3px 5px;
+  font-size: 12px;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .param-input:focus {
   outline: none;
   border-color: #007bff;
+}
+
+.param-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 110px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 4px 6px;
+  background: #f8f8f8;
+  box-sizing: border-box;
+}
+
+.param-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #333;
+}
+
+.param-group .param-item {
+  width: 100%;
 }
 </style>

@@ -8,6 +8,7 @@ import WarburgOpenSymbol from './symbols/WarburgOpenSymbol.vue'
 import WarburgShortSymbol from './symbols/WarburgShortSymbol.vue'
 import InductorSymbol from './symbols/InductorSymbol.vue'
 import { ref, inject, computed } from 'vue'
+import type { Ref } from 'vue'
 
 const props = defineProps<{
     node: CircuitNode;
@@ -47,6 +48,7 @@ const onEmptyDrop = (event: DragEvent, branch: 'upper' | 'lower') => {
 }
 
 const deleteNode = inject<(n: CircuitNode) => void>('deleteNode')
+const isDragging = inject<Ref<boolean>>('isDragging', ref(false))
 
 const handleRemove = () => {
     if (deleteNode && props.node) {
@@ -77,7 +79,7 @@ const horizontalSpacing = 30;
 
     <g v-else :transform="`translate(${x}, ${y})`">
 
-        <g class="drop-zone-before">
+        <g class="drop-zone-before" v-show="isDragging">
             <rect x="-19" y="-13" width="16" height="26" rx="3"
               :fill="hoverState === 'before' ? 'rgba(59,130,246,0.25)' : 'rgba(0,0,0,0.06)'"
               :stroke="hoverState === 'before' ? '#3b82f6' : '#ccc'"
@@ -141,13 +143,13 @@ const horizontalSpacing = 30;
                 </template>
                 <template v-else>
                     <line x1="0" :y1="-getVerticalOffset" :x2="node.countLength()" :y2="-getVerticalOffset" stroke="#333" stroke-width="2" />
-                    <rect :x="node.countLength()/2 - 28" :y="-getVerticalOffset - 16" width="56" height="32" rx="5"
+                    <rect v-show="isDragging" :x="node.countLength()/2 - 28" :y="-getVerticalOffset - 16" width="56" height="32" rx="5"
                           :fill="emptyBranchHover === 'upper' ? 'rgba(59,130,246,0.18)' : 'rgba(59,130,246,0.06)'"
                           :stroke="emptyBranchHover === 'upper' ? '#3b82f6' : '#aac4f0'"
                           stroke-width="1.5" stroke-dasharray="5,3" cursor="pointer"
                           @dragover.prevent @dragenter.prevent="emptyBranchHover = 'upper'"
                           @dragleave="emptyBranchHover = null" @drop.stop.prevent="onEmptyDrop($event, 'upper')" />
-                    <text :x="node.countLength()/2" :y="-getVerticalOffset + 5" text-anchor="middle" font-size="10"
+                    <text v-show="isDragging" :x="node.countLength()/2" :y="-getVerticalOffset + 5" text-anchor="middle" font-size="10"
                           :fill="emptyBranchHover === 'upper' ? '#3b82f6' : '#aac4f0'" pointer-events="none">drop here</text>
                 </template>
             </g>
@@ -167,19 +169,19 @@ const horizontalSpacing = 30;
                 </template>
                 <template v-else>
                     <line x1="0" :y1="getVerticalOffset" :x2="node.countLength()" :y2="getVerticalOffset" stroke="#333" stroke-width="2" />
-                    <rect :x="node.countLength()/2 - 28" :y="getVerticalOffset - 16" width="56" height="32" rx="5"
+                    <rect v-show="isDragging" :x="node.countLength()/2 - 28" :y="getVerticalOffset - 16" width="56" height="32" rx="5"
                           :fill="emptyBranchHover === 'lower' ? 'rgba(59,130,246,0.18)' : 'rgba(59,130,246,0.06)'"
                           :stroke="emptyBranchHover === 'lower' ? '#3b82f6' : '#aac4f0'"
                           stroke-width="1.5" stroke-dasharray="5,3" cursor="pointer"
                           @dragover.prevent @dragenter.prevent="emptyBranchHover = 'lower'"
                           @dragleave="emptyBranchHover = null" @drop.stop.prevent="onEmptyDrop($event, 'lower')" />
-                    <text :x="node.countLength()/2" :y="getVerticalOffset + 5" text-anchor="middle" font-size="10"
+                    <text v-show="isDragging" :x="node.countLength()/2" :y="getVerticalOffset + 5" text-anchor="middle" font-size="10"
                           :fill="emptyBranchHover === 'lower' ? '#3b82f6' : '#aac4f0'" pointer-events="none">drop here</text>
                 </template>
             </g>
         </g>
 
-        <g v-if="!node.next || node.next.type === 'end'" class="drop-zone-after" :transform="`translate(${node.countLength() + 3}, 0)`">
+        <g v-if="!node.next || node.next.type === 'end'" v-show="isDragging" class="drop-zone-after" :transform="`translate(${node.countLength() + 3}, 0)`">
             <rect x="0" y="-13" width="16" height="26" rx="3"
               :fill="hoverState === 'after' ? 'rgba(59,130,246,0.25)' : 'rgba(0,0,0,0.06)'"
               :stroke="hoverState === 'after' ? '#3b82f6' : '#ccc'"

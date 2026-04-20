@@ -40,12 +40,17 @@ const {
   handleNodeDrop, insertIntoEmptyBranch, deleteNode,
 } = useCircuitTree()
 
-// Provide drop handlers to CircuitRenderer.
+// Provide drop handlers and drag state to CircuitRenderer.
 // CircuitRenderer is deeply nested (it recurses into itself), so inject/provide
 // is cleaner than passing the handlers as props at every level.
 provide('handleNodeDrop', handleNodeDrop)
 provide('insertIntoEmptyBranch', insertIntoEmptyBranch)
 provide('deleteNode', deleteNode)
+
+// Tracks whether the user is currently dragging a palette element.
+// Provided to CircuitRenderer so drop zones are only visible during a drag.
+const isDragging = ref(false)
+provide('isDragging', isDragging)
 
 // All leaf nodes (R, C, CPE, W …) shown in the parameter editor.
 // renderVersion is read here so Vue tracks it as a dependency.
@@ -164,7 +169,7 @@ watch(() => props.eisData, drawPlots)
 </script>
 
 <template>
-  <BaseCard title="ECM Builder">
+  <BaseCard title="ECM Builder" @dragstart.capture="isDragging = true" @dragend.capture="isDragging = false">
 
     <!-- Nyquist and Bode plots -->
     <div class="plot-row">
