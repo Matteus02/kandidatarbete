@@ -10,6 +10,7 @@ import FitPanel from '@/components/panels/FitPanel.vue'
 import ExportPanel from '@/components/panels/ExportPanel.vue'
 import ECMmodule from '@/components/modules/ECMmodule.vue'
 import { useEisStore } from '@/stores/eis'
+import type { EisDataPoint } from '@/types/eis'
 
 const tabs = [
   { id: 'data',   label: 'Data' },
@@ -22,20 +23,11 @@ const tabs = [
 
 type TabId = (typeof tabs)[number]['id']
 
-const activeTab = ref<TabId>('data')
+const activeTab      = ref<TabId>('data')
 const globalfileName = ref('')
+const globalEISData  = ref<EisDataPoint[]>([])
 
-interface EISData {
-  'freq/Hz': number
-  'Re(Z)/Ohm': number
-  '-Im(Z)/Ohm': number
-  '|Z|/Ohm': number
-  'Phase(Z)/deg': number
-}
-
-const globalEISData = ref<EISData[]>([])
-
-const handleAnalysisComplete = (data: EISData[], name: string) => {
+const handleAnalysisComplete = (data: EisDataPoint[], name: string) => {
   globalfileName.value = name
   globalEISData.value = data
   activeTab.value = 'plot'

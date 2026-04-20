@@ -1,4 +1,4 @@
-export type ElementType = 'R' | 'C' | 'CPE' | 'W' | 'parallel' |'end'| 'empty';
+export type ElementType = 'R' | 'C' | 'CPE' | 'W' | 'Wo' | 'Ws' | 'L' | 'parallel' | 'end' | 'empty';
 const nodeHeight = 10;
 const horizontalSpacing = 30;
 const nodeWidth = 60;
@@ -8,15 +8,17 @@ export class CircuitNode {
   public id: string;
   public type: ElementType;
   public value: number;
+  public value2: number; // second parameter for two-param elements (Wo: tau, Ws: tau)
   public earlier: CircuitNode | null;
   public next: CircuitNode | null;
   public upperBranch: CircuitNode | null;
   public lowerBranch: CircuitNode | null;
 
-  constructor(id: string, type: ElementType, value: number = 0) {
+  constructor(id: string, type: ElementType, value: number = 0, value2: number = 1.0) {
     this.id = id;
     this.type = type;
     this.value = value;
+    this.value2 = value2;
     this.earlier = null;
     this.next = null;
     this.upperBranch = null;

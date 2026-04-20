@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { CircuitNode } from '@/components/circuit/CircuitNode'
-import ResistorSymbol from './ResistorSymbol.vue'
-import CapacitorSymbol from './CapacitorSymbol.vue'
-import CpeSymbol from './CpeSymbol.vue'
-import WarburgSymbol from './WarburgSymbol.vue'
+import ResistorSymbol from './symbols/ResistorSymbol.vue'
+import CapacitorSymbol from './symbols/CapacitorSymbol.vue'
+import CpeSymbol from './symbols/CpeSymbol.vue'
+import WarburgSymbol from './symbols/WarburgSymbol.vue'
+import WarburgOpenSymbol from './symbols/WarburgOpenSymbol.vue'
+import WarburgShortSymbol from './symbols/WarburgShortSymbol.vue'
+import InductorSymbol from './symbols/InductorSymbol.vue'
 import { ref, inject, computed } from 'vue'
 
 const props = defineProps<{
@@ -88,12 +91,15 @@ const horizontalSpacing = 30;
               @dragleave="hoverState = null" @drop.stop.prevent="onDrop($event, 'before')" />
         </g>
 
-        <g v-if="['R', 'C', 'CPE', 'W'].includes(node.type)" class="component-wrapper" @click.stop="handleRemove" @dragleave="hoverState = null">
+        <g v-if="['R', 'C', 'CPE', 'W', 'Wo', 'Ws', 'L'].includes(node.type)" class="component-wrapper" @click.stop="handleRemove" @dragleave="hoverState = null">
 
             <ResistorSymbol v-if="node.type === 'R'" :label="`${node.id}`" />
             <CapacitorSymbol v-else-if="node.type === 'C'" :label="`${node.id}`" />
             <CpeSymbol v-else-if="node.type === 'CPE'" :label="`${node.id}`" />
             <WarburgSymbol v-else-if="node.type === 'W'" :label="`${node.id}`" />
+            <WarburgOpenSymbol v-else-if="node.type === 'Wo'" :label="`${node.id}`" />
+            <WarburgShortSymbol v-else-if="node.type === 'Ws'" :label="`${node.id}`" />
+            <InductorSymbol v-else-if="node.type === 'L'" :label="`${node.id}`" />
 
             <rect x="0" y="-25" :width="node.countLength()" height="50" fill="transparent"
               @dragover.prevent @dragenter.prevent="hoverState = 'replace'"
