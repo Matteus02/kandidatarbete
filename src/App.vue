@@ -42,7 +42,7 @@ const handleAnalysisComplete = (data: EISData[], name: string) => {
 }
 
 const handleModelCircuit = () => {
-  activeTab.value = 'ecm'
+  activeTab.value = 'ai'
 }
 
 const eisStore = useEisStore()
@@ -56,8 +56,8 @@ const handleApplyCircuit = (circuitString: string) => {
 <template>
   <div class="app">
     <header class="app__header">
-      <h1 class="app__title">EIS Analyzer</h1>
-      <p class="app__subtitle">Electrochemical Impedance Spectroscopy</p>
+      <h1 class="app__title">Electrochemical Impedance Spectroscopy Analyzer</h1>
+      <p class="app__subtitle">A automated tool for finding ECM and fitting circuits</p>
     </header>
 
     <main class="app__main">
