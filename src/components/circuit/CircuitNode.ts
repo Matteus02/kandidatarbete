@@ -59,8 +59,8 @@ export class CircuitNode {
 
     if (this.type === 'end') return 0;
     if (this.type === 'parallel'){
-        let upperAmount = this.upperBranch ? this.upperBranch.countAmount() : 0;
-        let lowerAmount = this.lowerBranch ? this.lowerBranch.countAmount() : 0;
+        const upperAmount = this.upperBranch ? this.upperBranch.countAmount() : 0;
+        const lowerAmount = this.lowerBranch ? this.lowerBranch.countAmount() : 0;
         return upperAmount + lowerAmount + (this.next?.countAmount() ?? 0);
     }
     return 1 + (this.next?.countAmount() ?? 0);

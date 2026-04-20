@@ -13,6 +13,7 @@ import Plotly from 'plotly.js-dist-min'
 import { add, parallel, zR, zC, zCPE, zW } from '@/utils/impedance'
 import type { Complex } from '@/utils/impedance'
 import { useEisStore } from '@/stores/eis'
+import * as fmin from 'fmin'
 
 const props = defineProps<{ eisData: EisDataPoint[] }>()
 const store = useEisStore()
@@ -174,7 +175,79 @@ function zOfChain(node: CircuitNode | null, omega: number): Complex {
   if (!node || node.type === 'end') return { re: 0, im: 0 }
   return add(zOfNode(node, omega), zOfChain(node.next, omega))
 }
+// ─── Curve Fitting (CNLS) ──────────────────────────────────────────────────
 
+const isFitting = ref(false)
+
+const fitModel = () => {
+  if (props.eisData.length === 0) {
+    alert("Ingen mätdata att anpassa mot!")
+    return
+  }
+
+  isFitting.value = true
+
+  // 1. Samla alla noder som har ett parametervärde (R, C, CPE, W)
+  const nodes = collectNodes(rootNode.value)
+  const optimizableNodes = nodes.filter(n => ['R', 'C', 'CPE', 'W'].includes(n.type))
+
+  if (optimizableNodes.length === 0) {
+    isFitting.value = false
+    return
+  }
+
+  // Spara undan startvärdena
+  const initialValues = optimizableNodes.map(n => n.value)
+
+  // 2. Definiera kostnadsfunktionen (Cost Function)
+const calculateError = (params: number[]) => {
+    optimizableNodes.forEach((node, idx) => {
+      const val = params[idx] ?? 0
+      node.value = Math.max(1e-15, Math.abs(val))
+    })
+
+    let totalError = 0
+    // ... resten av koden är samma
+
+    // Beräkna felet för varje frekvenspunkt
+    for (const d of props.eisData) {
+      const omega = 2 * Math.PI * d['freq/Hz']
+
+      const measRe = d['Re(Z)/Ohm']
+      const measIm = d['-Im(Z)/Ohm']
+
+      const modelZ = zOfChain(rootNode.value, omega)
+
+      const reError = measRe - modelZ.re
+      const imError = measIm - (-modelZ.im)
+
+      // Viktning: Dela felet med |Z|^2 (Modulus weighting)
+      const magSq = (measRe * measRe) + (measIm * measIm) || 1e-10
+
+      totalError += (reError * reError + imError * imError) / magSq
+    }
+
+    return totalError
+  }
+
+  // 3. Kör optimeringen med Nelder-Mead
+  try {
+    const solution = fmin.nelderMead(calculateError, initialValues)
+
+    // 4. Sätt de slutgiltiga, optimerade värdena i kretsen
+    optimizableNodes.forEach((node, idx) => {
+      node.value = Math.max(1e-15, Math.abs(solution.x[idx]))
+    })
+
+
+
+  } catch (err) {
+    console.error("Optimeringen misslyckades:", err)
+    alert("Kunde inte anpassa kurvan. Testa att ge kretsen bättre startvärden.")
+  } finally {
+    isFitting.value = false
+  }
+}
 // ─── Plots ─────────────────────────────────────────────────────────────────
 
 const showModel = ref(false)
@@ -361,11 +434,10 @@ watch(() => props.eisData, drawPlots)
       <div id="ecm-nyquist" class="plot"></div>
       <div id="ecm-bode"    class="plot"></div>
     </div>
-
+    <br>
     <!-- AI suggestion banner -->
     <div v-if="aiAppliedCircuit" class="ai-banner">
       AI suggestion loaded: <code>{{ aiAppliedCircuit }}</code>
-      — adjust parameters below and click "Plot Data with Circuit"
     </div>
 
     <!-- Circuit canvas -->
@@ -408,10 +480,17 @@ watch(() => props.eisData, drawPlots)
         </svg>
         <span class="palette-label">{{ item.label }}</span>
       </div>
+      <div class = "instruction">
+        <p>Start Building: Drag a component (Resistor, Capacitor, etc.) from the menu and drop it onto the empty dashed box.</p>
+        <p> Add in Series: Drag a new component and drop it onto the + icons to place it either before or after an existing part.</p>
+        <p>Create Parallel Branches: Drag a Parallel Block to the board, then drop components directly into the empty "drop here" zones inside it.</p>
+        <p>Replace a Component: Drop a new component directly on top of an existing one to swap them out instantly.</p>
+        <p>Delete: Simply click on any component on the board to remove it.</p>
+      </div>
     </div>
-
+    <br>
     <!-- Parameter editor -->
-    <div class="section-label" style="margin-top: 16px;">Parameters <span class="hint">(click a component on the circuit to remove it)</span></div>
+    <div class="section-label" style="margin-top: 16px;">Parameters <span class="hint">(Adjust Parameters by changing values below)</span></div>
     <div class="param-grid">
       <div
         v-for="node in editableNodes"
@@ -433,9 +512,18 @@ watch(() => props.eisData, drawPlots)
     </div>
 
     <!-- Action button -->
-    <button class="plot-btn" :disabled="props.eisData.length === 0" @click="plotWithCircuit">
-      Plot Data with Circuit
-    </button>
+     <div class="plot-buttons">
+      <button class="plot-btn" :disabled="props.eisData.length === 0" @click="plotWithCircuit">
+        Plot Circuit
+      </button>
+
+      <button
+      @click="fitModel"
+      :disabled="isFitting || props.eisData.length === 0"
+       class="plot-btn">
+      {{ isFitting ? 'Anpassar...' : 'Fit Parameters to Circuit (Auto)' }}
+      </button>
+    </div>
     <p v-if="props.eisData.length === 0" class="no-data-hint">
       Load EIS data in the Data tab first.
     </p>
@@ -479,6 +567,12 @@ watch(() => props.eisData, drawPlots)
   flex-wrap: wrap;
   margin-top: 10px;
 }
+.instruction {
+  font-size:10px;
+  color: black;
+  max-width: 600px;
+
+}
 
 .palette-item {
   display: flex;
@@ -511,7 +605,12 @@ watch(() => props.eisData, drawPlots)
   gap: 8px;
   margin-bottom: 14px;
 }
-
+.plot-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px; /* Adjust this value as needed */
+}
 .param-item {
   display: flex;
   flex-direction: column;
