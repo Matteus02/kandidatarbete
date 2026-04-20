@@ -67,6 +67,8 @@ function interp1d(xKnown: number[], yKnown: number[], xQuery: number[]): number[
 
 // ─── Tensor construction ──────────────────────────────────────────────────────
 
+// ─── Tensor construction ──────────────────────────────────────────────────────
+
 function buildTensor(data: InferenceRequest['data']): ort.Tensor {
   // Sort high → low frequency, matching training data layout
   const sorted = [...data].sort((a, b) => b['freq/Hz'] - a['freq/Hz'])
@@ -81,22 +83,33 @@ function buildTensor(data: InferenceRequest['data']): ort.Tensor {
   const phaseDeg = unwrapPhase(angles).map((a) => a * (180 / Math.PI))
   const rawPhaseDeriv = gradient(phaseDeg, rawLogFreq)
 
+  // NYTT: Bode magnitude slope: d(log10|Z|) / d(log10(f))
+  const logMag = rawReZ.map((re, i) => {
+    const im = rawImZ[i]!
+    const mag = Math.sqrt(re * re + im * im)
+    return Math.log10(mag + 1e-30) // + 1e-30 för att undvika log(0) exakt som i Python
+  })
+  const rawBodeSlope = gradient(logMag, rawLogFreq)
+
   // 60-point log-spaced grid spanning the actual measurement window
   const logFmax = rawLogFreq[0]!
   const logFmin = rawLogFreq[rawLogFreq.length - 1]!
   const logFixed = linspace(logFmax, logFmin, N_POINTS)
 
-  // Interpolate channels 0, 1, 3; channel 2 is logFixed itself
+  // Interpolate channels 0, 1, 3, 4; channel 2 is logFixed itself
   const channels = [
     interp1d(rawLogFreq, rawReZ, logFixed),
     interp1d(rawLogFreq, rawImZ, logFixed),
     logFixed,
     interp1d(rawLogFreq, rawPhaseDeriv, logFixed),
+    interp1d(rawLogFreq, rawBodeSlope, logFixed), // NYTT: 5:e kanalen läggs till
   ]
 
-  const buffer = new Float32Array(4 * N_POINTS)
+  // NYTT: Buffer-storlek uppdaterad från 4 * N_POINTS till 5 * N_POINTS
+  const buffer = new Float32Array(5 * N_POINTS)
 
-  for (let ch = 0; ch < 4; ch++) {
+  // NYTT: Loopa över 5 kanaler istället för 4
+  for (let ch = 0; ch < 5; ch++) {
     const vals = channels[ch]!
     const offset = ch * N_POINTS
 
@@ -119,7 +132,8 @@ function buildTensor(data: InferenceRequest['data']): ort.Tensor {
     }
   }
 
-  return new ort.Tensor('float32', buffer, [1, 4, N_POINTS])
+  // NYTT: Dimensionerna uppdaterade till [1, 5, N_POINTS]
+  return new ort.Tensor('float32', buffer, [1, 5, N_POINTS])
 }
 
 // ─── Softmax ──────────────────────────────────────────────────────────────────
