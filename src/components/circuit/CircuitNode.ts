@@ -1,4 +1,4 @@
-export type ElementType = 'R' | 'C' | 'CPE' | 'W' | 'parallel' |'end';
+export type ElementType = 'R' | 'C' | 'CPE' | 'W' | 'parallel' |'end'| 'empty';
 const nodeHeight = 10;
 const horizontalSpacing = 30;
 const nodeWidth = 60;
