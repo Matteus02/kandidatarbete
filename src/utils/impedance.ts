@@ -127,6 +127,47 @@ export function estimateParams(
   }
 }
 
+// --- Beräkna Z(ω) direkt från CircuitNode-trädet ---
+// Importeras av ECMmodule; CircuitNode importeras lazily for avoid circular dep.
+// Caller passes the root node; function recurses through series chain + branches.
+
+export function calcZNode(
+  node: { type: string; value: number; upperBranch: unknown; lowerBranch: unknown },
+  omega: number,
+  CPE_N = 0.85,
+): Complex {
+  switch (node.type) {
+    case 'R':  return zR(node.value)
+    case 'C':  return zC(node.value, omega)
+    case 'CPE': return zCPE(node.value, CPE_N, omega)
+    case 'W':  return zW(node.value, omega)
+    case 'parallel': {
+      const u = node.upperBranch as { type: string; value: number; next: unknown; upperBranch: unknown; lowerBranch: unknown } | null
+      const l = node.lowerBranch as { type: string; value: number; next: unknown; upperBranch: unknown; lowerBranch: unknown } | null
+      const zu = u ? calcZChain(u, omega, CPE_N) : null
+      const zl = l ? calcZChain(l, omega, CPE_N) : null
+      if (zu && zl) return parallel(zu, zl)
+      return zu ?? zl ?? { re: 0, im: 0 }
+    }
+    default: return { re: 0, im: 0 }
+  }
+}
+
+export function calcZChain(
+  node: { type: string; value: number; next: unknown; upperBranch: unknown; lowerBranch: unknown } | null,
+  omega: number,
+  CPE_N = 0.85,
+): Complex {
+  if (!node || node.type === 'end') return { re: 0, im: 0 }
+  const z = calcZNode(node, omega, CPE_N)
+  const rest = calcZChain(
+    node.next as { type: string; value: number; next: unknown; upperBranch: unknown; lowerBranch: unknown } | null,
+    omega,
+    CPE_N,
+  )
+  return add(z, rest)
+}
+
 // --- Beräkna Z(ω) för vald kretsmodell ---
 
 export function calcZ(
