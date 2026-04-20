@@ -239,7 +239,8 @@ const calculateError = (params: number[]) => {
       node.value = Math.max(1e-15, Math.abs(solution.x[idx]))
     })
 
-
+  renderVersion.value++
+  if (showModel.value){drawPlots()}
 
   } catch (err) {
     console.error("Optimeringen misslyckades:", err)
