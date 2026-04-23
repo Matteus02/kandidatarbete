@@ -35,33 +35,58 @@ const drawPlots = () => {
         },
       }
 
-      // 2. Bode-data: Frekvens vs |Z|
+      // 2. Bode-data: Frekvens vs |Z| och fas — två subplottar i samma div
       const freq = props.eisData.map((d) => d['freq/Hz'])
       const zMag = props.eisData.map((d) => d['|Z|/Ohm'])
-      //const phase = fileName.value.map(d => d['Phase(Z)/deg'])
+      const phase = props.eisData.map((d) => d['Phase(Z)/deg'])
 
       const bodeMagTrace = {
         x: freq,
         y: zMag,
         mode: 'lines+markers' as const,
         type: 'scatter' as const,
-        name: 'Magnitude',
+        name: '|Z|',
+        xaxis: 'x' as const,
+        yaxis: 'y' as const,
+      }
+
+      const bodePhaseTrace = {
+        x: freq,
+        y: phase,
+        mode: 'lines+markers' as const,
+        type: 'scatter' as const,
+        name: 'Phase',
+        line: { color: '#e67e22' },
+        marker: { color: '#e67e22' },
+        xaxis: 'x' as const,
+        yaxis: 'y2' as const,
       }
 
       const bodeLayout = {
-        title: { text: 'Bode Plot (Magnitude)' },
+        title: { text: 'Bode Plot' },
+        grid: { rows: 2, columns: 1 },
         xaxis: {
           title: { text: 'Frequency / Hz' },
           type: 'log' as const,
+          domain: [0, 1] as [number, number],
         },
         yaxis: {
           title: { text: '|Z| / Ω' },
           type: 'log' as const,
+          domain: [0.55, 1] as [number, number],
         },
+        yaxis2: {
+          title: { text: 'Phase / °' },
+          domain: [0, 0.45] as [number, number],
+          anchor: 'x' as const,
+        },
+        height: 500,
+        margin: { t: 50, r: 20, b: 50, l: 70 },
+        showlegend: true,
       }
 
       Plotly.newPlot('nyquist-plot', [nyquistTrace], nyquistLayout)
-      Plotly.newPlot('bode-plot', [bodeMagTrace], bodeLayout)
+      Plotly.newPlot('bode-plot', [bodeMagTrace, bodePhaseTrace], bodeLayout)
 }
 const emit = defineEmits(['model-circuit'])
 

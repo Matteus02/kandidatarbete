@@ -82,12 +82,28 @@ function drawPlots() {
     type: 'scatter' as const,
     name: 'Measurement',
   }
-  const measBode = {
-    x: props.eisData.map(d => d['freq/Hz']),
+  const freq = props.eisData.map(d => d['freq/Hz'])
+
+  const measBodeMag = {
+    x: freq,
     y: props.eisData.map(d => d['|Z|/Ohm']),
     mode: 'lines+markers' as const,
     type: 'scatter' as const,
     name: 'Measurement',
+    xaxis: 'x' as const,
+    yaxis: 'y' as const,
+  }
+  const measBodePhase = {
+    x: freq,
+    y: props.eisData.map(d => d['Phase(Z)/deg']),
+    mode: 'lines+markers' as const,
+    type: 'scatter' as const,
+    name: 'Measurement',
+    showlegend: false,
+    line: { color: '#007bff' },
+    marker: { color: '#007bff' },
+    xaxis: 'x' as const,
+    yaxis: 'y2' as const,
   }
 
   // ── Plot layouts ─────────────────────────────────────────────────────────
@@ -98,10 +114,12 @@ function drawPlots() {
     height: 380, margin: { t: 40, r: 20, b: 50, l: 60 }, showlegend: true,
   }
   const bodeLayout = {
-    title: { text: 'Bode Plot (Magnitude)' },
-    xaxis: { title: { text: 'Frequency / Hz' }, type: 'log' as const },
-    yaxis: { title: { text: '|Z| / Ω'        }, type: 'log' as const },
-    height: 380, margin: { t: 40, r: 20, b: 50, l: 60 }, showlegend: true,
+    title: { text: 'Bode Plot' },
+    grid: { rows: 2, columns: 1 },
+    xaxis: { title: { text: 'Frequency / Hz' }, type: 'log' as const, domain: [0, 1] as [number, number] },
+    yaxis: { title: { text: '|Z| / Ω' }, type: 'log' as const, domain: [0.55, 1] as [number, number] },
+    yaxis2: { title: { text: 'Phase / °' }, domain: [0, 0.45] as [number, number], anchor: 'x' as const },
+    height: 500, margin: { t: 50, r: 20, b: 50, l: 70 }, showlegend: true,
   }
 
   if (showModel.value) {
@@ -116,15 +134,19 @@ function drawPlots() {
       modelIm.push(-z.im)
       modelMag.push(Math.sqrt(z.re * z.re + z.im * z.im))
     }
+    const modelPhase = modelRe.map((re, i) =>
+      (Math.atan2(-modelIm[i]!, re) * 180) / Math.PI,
+    )
 
-    const modelNyq  = { x: modelRe,  y: modelIm,  mode: 'lines' as const, line: { color: '#e74c3c', width: 2 }, type: 'scatter' as const, name: 'Model' }
-    const modelBode = { x: measBode.x, y: modelMag, mode: 'lines' as const, line: { color: '#e74c3c', width: 2 }, type: 'scatter' as const, name: 'Model' }
+    const modelNyq = { x: modelRe, y: modelIm, mode: 'lines' as const, line: { color: '#e74c3c', width: 2 }, type: 'scatter' as const, name: 'Model' }
+    const modelBodeMag = { x: freq, y: modelMag, mode: 'lines' as const, line: { color: '#e74c3c', width: 2 }, type: 'scatter' as const, name: 'Model', xaxis: 'x' as const, yaxis: 'y' as const }
+    const modelBodePhase = { x: freq, y: modelPhase, mode: 'lines' as const, line: { color: '#e74c3c', width: 2 }, type: 'scatter' as const, name: 'Model', showlegend: false, xaxis: 'x' as const, yaxis: 'y2' as const }
 
-    Plotly.newPlot('ecm-nyquist', [measNyquist, modelNyq],  nyqLayout)
-    Plotly.newPlot('ecm-bode',   [measBode,    modelBode], bodeLayout)
+    Plotly.newPlot('ecm-nyquist', [measNyquist, modelNyq], nyqLayout)
+    Plotly.newPlot('ecm-bode',   [measBodeMag, measBodePhase, modelBodeMag, modelBodePhase], bodeLayout)
   } else {
     Plotly.newPlot('ecm-nyquist', [measNyquist], nyqLayout)
-    Plotly.newPlot('ecm-bode',   [measBode],    bodeLayout)
+    Plotly.newPlot('ecm-bode',   [measBodeMag, measBodePhase], bodeLayout)
   }
 }
 
