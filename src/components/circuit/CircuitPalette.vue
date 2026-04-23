@@ -60,7 +60,7 @@ function onDragStart(event: DragEvent, type: string) {
       <p><strong>Series:</strong> Drop onto a <kbd>+</kbd> icon to insert before or after.</p>
       <p><strong>Parallel:</strong> Add a Parallel block, then drop into its "drop here" zones.</p>
       <p><strong>Replace:</strong> Drop directly onto an element to swap it out.</p>
-      <p><strong>Delete:</strong> Click any element to remove it.</p>
+      <p><strong>Delete:</strong> Click on any element to remove it.</p>
     </div>
   </div>
 </template>
