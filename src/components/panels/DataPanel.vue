@@ -3,6 +3,7 @@ import BaseCard from '@/components/ui/BaseCard.vue'
 import { ref } from 'vue'
 import * as Papa from 'papaparse'
 import type { EisDataPoint } from '@/types/eis'
+import { parseEisCsv } from '@/utils/csvParser'
 
 const props = defineProps<{
   initialFileName: string
@@ -19,14 +20,17 @@ const onFileChange = (event: Event) => {
 
   if (file) {
     fileName.value = file.name
-    Papa.parse(file, {
-      header: true,
-      dynamicTyping: true,   // parsar siffror som nummer, inte strängar
-      skipEmptyLines: true,  // ignorerar tomma rader i slutet av filen
-      complete: (results) => {
-        parsedData.value = results.data as EisDataPoint[]
-      },
-    })
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const text = e.target?.result as string
+      try {
+        parsedData.value = parseEisCsv(text)
+      } catch (err) {
+        console.error('Error parsing CSV:', err)
+        alert('Failed to parse CSV file.')
+      }
+    }
+    reader.readAsText(file)
   }
 }
 
