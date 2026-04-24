@@ -7,8 +7,9 @@ import type {
 } from '@/types/eis'
 import type { PredictionItem } from '@/ai/workerProtocol'
 
+import { parseEisCsv } from '@/utils/csvParser'
+
 // Central store for EIS app state.
-// All actions are stubs — fill them in as features get built.
 export const useEisStore = defineStore('eis', () => {
   // --- Raw input ---
   const rawCsvText = ref<string | null>(null)
@@ -34,11 +35,16 @@ export const useEisStore = defineStore('eis', () => {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
-  // --- Actions (stubs) ---
+  // --- Actions ---
   function loadCsv(text: string, name: string): void {
     rawCsvText.value = text
     fileName.value = name
-    // TODO: parse CSV (e.g. with papaparse) and populate dataPoints
+    try {
+      dataPoints.value = parseEisCsv(text)
+    } catch (err) {
+      console.error('Error parsing CSV in store:', err)
+      dataPoints.value = []
+    }
   }
 
   function clearData(): void {
