@@ -137,37 +137,74 @@ export function useCircuitFitting(
     }
 
     // Convert to log-space so every parameter starts on the same numerical scale.
-    // A step of ±1 in log-space means a 10× change in linear space,
-    // regardless of whether the parameter is 1e-9 F or 1e4 Ω.
-    const initialLog = paramRefs.map(p => Math.log(Math.max(p.node[p.param], 1e-15)))
+    const initialLog = paramRefs.map(p => {
+      const val = p.node[p.param]
+      if (isNaN(val) || val === null || val === undefined) {
+        console.warn(`Parameter ${p.node.id}.${p.param} is ${val}, defaulting to 1e-3`)
+        return Math.log(1e-3)
+      }
+      return Math.log(Math.max(val, 1e-18))
+    })
 
     // Cost function: sum of modulus-weighted squared residuals over all frequencies.
-    // Modulus weighting divides each squared error by |Z_meas|² so that the
-    // low-frequency (high-Z) and high-frequency (low-Z) regions are balanced.
     const costFunction = (logParams: number[]): number => {
-      paramRefs.forEach((ref, i) => { ref.node[ref.param] = Math.exp(logParams[i] ?? 0) })
+      for (let i = 0; i < paramRefs.length; i++) {
+        const ref = paramRefs[i]
+        const val = Math.exp(logParams[i] ?? 0)
+        // Clamp to prevent extreme values that cause NaN in impedance formulas
+        ref.node[ref.param] = Math.min(Math.max(val, 1e-20), 1e20)
+      }
 
       let totalError = 0
       for (const d of data) {
         const omega  = 2 * Math.PI * d['freq/Hz']
+        if (omega === 0) continue
+
         const measRe = d['Re(Z)/Ohm']
         const measIm = d['-Im(Z)/Ohm']
         const modelZ = zOfChain(rootNode.value, omega)
+
+        if (isNaN(modelZ.re) || isNaN(modelZ.im)) {
+          // If model fails, return a very high error instead of NaN
+          return 1e30
+        }
+
         const magSq  = measRe * measRe + measIm * measIm || 1e-10
-        totalError  += ((measRe - modelZ.re) ** 2 + (measIm - (-modelZ.im)) ** 2) / magSq
+        const error  = ((measRe - modelZ.re) ** 2 + (measIm - (-modelZ.im)) ** 2) / magSq
+        
+        if (!isNaN(error) && isFinite(error)) {
+          totalError += error
+        }
       }
-      return totalError
+      return isNaN(totalError) ? 1e30 : totalError
     }
 
     try {
+      // Check if starting point is valid
+      const startCost = costFunction(initialLog)
+      if (isNaN(startCost) || !isFinite(startCost)) {
+        throw new Error(`Initial parameters lead to invalid (NaN) error: ${startCost}`)
+      }
+
+      console.log('Starting fit with cost:', startCost)
       const solution = fmin.nelderMead(costFunction, initialLog)
+      console.log('Fit finished. Solution:', solution)
 
       // Write the optimised log-params back to the nodes in linear space
-      paramRefs.forEach((ref, i) => { ref.node[ref.param] = Math.exp(solution.x[i] ?? 0) })
+      for (let i = 0; i < paramRefs.length; i++) {
+        const ref = paramRefs[i]
+        const val = Math.exp(solution.x[i] ?? 0)
+        ref.node[ref.param] = Math.min(Math.max(val, 1e-25), 1e25)
+      }
       onRedraw()
     } catch (err) {
-      console.error('Fitting failed:', err)
-      alert('Could not fit the curve. Try "Estimate Initial Values" first to set better starting points.')
+      console.error('Fitting failed details:', err)
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      if (errorMsg.includes('NaN')) {
+        alert(`Could not fit: some parameters became invalid (NaN). Try "Estimate Initial Values" to reset.`)
+      } else {
+        alert(`Fitting error: ${errorMsg.slice(0, 100)}. Try "Estimate Initial Values" first to set better starting points.`)
+      }
     } finally {
       isFitting.value = false
     }

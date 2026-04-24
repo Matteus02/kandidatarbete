@@ -53,20 +53,30 @@ export function zL(L: number, omega: number): Complex {
 
 // Warburg Open (finite-length, reflective boundary):
 // Z = Rw · coth(√(jωτ)) / √(jωτ)
-// Models diffusion in a layer with a blocking interface at the far end.
 export function zWo(Rw: number, tau: number, omega: number): Complex {
   const jot: Complex = { re: 0, im: omega * tau }
   const sqrtJot = csqrt(jot)
-  const coth     = div(ccosh(sqrtJot), csinh(sqrtJot))
+  
+  // Asymptotic approximation for large arguments to avoid Infinity/Infinity = NaN
+  if (sqrtJot.re > 20) {
+    return div({ re: Rw, im: 0 }, sqrtJot)
+  }
+
+  const coth = div(ccosh(sqrtJot), csinh(sqrtJot))
   return div(mul({ re: Rw, im: 0 }, coth), sqrtJot)
 }
 
 // Warburg Short (finite-length, transmissive boundary):
 // Z = Rw · tanh(√(jωτ)) / √(jωτ)
-// Models diffusion in a layer with a permeable interface at the far end.
 export function zWs(Rw: number, tau: number, omega: number): Complex {
   const jot: Complex = { re: 0, im: omega * tau }
   const sqrtJot = csqrt(jot)
-  const tanh     = div(csinh(sqrtJot), ccosh(sqrtJot))
+
+  // Asymptotic approximation for large arguments to avoid NaN
+  if (sqrtJot.re > 20) {
+    return div({ re: Rw, im: 0 }, sqrtJot)
+  }
+
+  const tanh = div(csinh(sqrtJot), ccosh(sqrtJot))
   return div(mul({ re: Rw, im: 0 }, tanh), sqrtJot)
 }
