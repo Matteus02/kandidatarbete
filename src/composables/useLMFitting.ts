@@ -10,20 +10,56 @@
 //       - Low-frequency tail        → Warburg coefficient
 //
 //   fitModel
-//     Runs the Levenberg-Marquardt algorithm from ml-levenberg-marquardt.
+//     Sends the circuit tree and EIS data to a Web Worker that runs the
+//     Levenberg-Marquardt algorithm from ml-levenberg-marquardt.
 //     All parameters are optimised in log-space so that resistances (100s Ω)
 //     and capacitances (1e-6 F) have equal influence on the step size.
-//     Modulus weighting (error / |Z|²) balances low- and high-impedance ranges.
+//     CPE n is bounded [0.1, 1.0]. Modulus weighting balances low- and
+//     high-impedance ranges. Results are written back to the reactive tree
+//     on the main thread after the worker responds.
 
 import { ref } from 'vue'
 import type { Ref } from 'vue'
 import type { CircuitNode } from '@/components/circuit/CircuitNode'
 import type { EisDataPoint } from '@/types/eis'
-import { zOfChain } from '@/utils/circuitImpedance'
-import { fitCircuit } from '@/utils/lmFitting'
-import type { CircuitModelFn } from '@/utils/lmFitting'
+import FittingWorker from '@/workers/lmFitting.worker.ts?worker'
+import type { FittingRequest, FittingResponse, SerializedNode } from '@/ai/fittingWorkerProtocol'
 
 type CollectFn = (node: CircuitNode | null) => CircuitNode[]
+
+// Module-level worker instance — reused across fits, lazily created on first use.
+let fittingWorker: Worker | null = null
+function getFittingWorker(): Worker {
+  if (!fittingWorker) fittingWorker = new FittingWorker()
+  return fittingWorker
+}
+
+// Serialise the full circuit tree to a flat JSON-safe array.
+// Includes ALL node types (parallel, end) because zOfChain traverses them.
+function serializeTree(root: CircuitNode): SerializedNode[] {
+  const visited = new Set<string>()
+  const result: SerializedNode[] = []
+
+  function visit(node: CircuitNode | null) {
+    if (!node || visited.has(node.id)) return
+    visited.add(node.id)
+    result.push({
+      id:            node.id,
+      type:          node.type,
+      value:         node.value,
+      value2:        node.value2,
+      nextId:        node.next?.id         ?? null,
+      upperBranchId: node.upperBranch?.id  ?? null,
+      lowerBranchId: node.lowerBranch?.id  ?? null,
+    })
+    visit(node.next)
+    visit(node.upperBranch)
+    visit(node.lowerBranch)
+  }
+
+  visit(root)
+  return result
+}
 
 export function useLMFitting(
   rootNode: Ref<CircuitNode>,
@@ -66,8 +102,11 @@ export function useLMFitting(
           seriesRSeen++
           break
         case 'C':
-        case 'CPE':
           node.value = 1 / (omegaPeak * Math.max(arcShare, 1))
+          break
+        case 'CPE':
+          node.value  = 1 / (omegaPeak * Math.max(arcShare, 1))
+          node.value2 = 0.85
           break
         case 'W': {
           const reLow = reZ[reZ.length - 1] ?? 100
@@ -95,9 +134,9 @@ export function useLMFitting(
     onRedraw()
   }
 
-  // ── Levenberg-Marquardt Curve Fitting ────────────────────────────────────
+  // ── Levenberg-Marquardt Curve Fitting (Web Worker) ───────────────────────
 
-  function fitModel() {
+  async function fitModel() {
     const data = getEisData()
     if (data.length === 0) {
       alert('No measurement data to fit against!')
@@ -119,48 +158,69 @@ export function useLMFitting(
     const paramRefs: ParamRef[] = []
     for (const node of optimizableNodes) {
       paramRefs.push({ node, param: 'value' })
-      if (node.type === 'Wo' || node.type === 'Ws') {
+      if (node.type === 'Wo' || node.type === 'Ws' || node.type === 'CPE') {
         paramRefs.push({ node, param: 'value2' })
       }
     }
 
-    const initialParams = paramRefs.map(r => {
-      const v = r.node[r.param]
-      return isNaN(v) || v == null ? 1e-3 : Math.max(v, 1e-20)
-    })
+    const minValues = paramRefs.map(r =>
+      r.node.type === 'CPE' && r.param === 'value2' ? 0.1 : 1e-20,
+    )
+    const maxValues = paramRefs.map(r =>
+      r.node.type === 'CPE' && r.param === 'value2' ? 1.0 : 1e20,
+    )
 
-    const sorted = [...data].sort((a, b) => a['freq/Hz'] - b['freq/Hz'])
+    const sorted     = [...data].sort((a, b) => a['freq/Hz'] - b['freq/Hz'])
     const frequencies = sorted.map(d => d['freq/Hz'])
     const zReal       = sorted.map(d => d['Re(Z)/Ohm'])
     const zImag       = sorted.map(d => d['-Im(Z)/Ohm'])
 
-    // Build model function: writes params into the circuit tree and evaluates zOfChain.
-    const modelFn: CircuitModelFn = (params, omegas) => {
-      for (let i = 0; i < paramRefs.length; i++) {
-        const ref = paramRefs[i]!
-        ref.node[ref.param] = Math.min(Math.max(params[i] ?? 1e-3, 1e-20), 1e20)
-      }
-      return omegas.map(omega => zOfChain(rootNode.value, omega))
+    const request: FittingRequest = {
+      type:      'fit',
+      nodes:     serializeTree(rootNode.value),
+      rootId:    rootNode.value.id,
+      frequencies,
+      zReal,
+      zImag,
+      minValues,
+      maxValues,
+      paramRefs: paramRefs.map(r => ({ nodeId: r.node.id, param: r.param })),
     }
 
     try {
-      const result = fitCircuit({ frequencies, zReal, zImag, modelFn, initialParams })
+      const response = await new Promise<FittingResponse>((resolve, reject) => {
+        const w = getFittingWorker()
+        const onMessage = (event: MessageEvent<FittingResponse>) => {
+          w.removeEventListener('message', onMessage)
+          w.removeEventListener('error', onError)
+          resolve(event.data)
+        }
+        const onError = (e: ErrorEvent) => {
+          w.removeEventListener('message', onMessage)
+          w.removeEventListener('error', onError)
+          reject(new Error(e.message))
+        }
+        w.addEventListener('message', onMessage)
+        w.addEventListener('error', onError)
+        w.postMessage(request)
+      })
+
+      if (response.type === 'error') throw new Error(response.message)
 
       console.log(
-        `LM fit converged in ${result.iterations} iterations. χ² = ${result.chiSquared.toExponential(3)}`,
+        `LM fit converged in ${response.iterations} iterations. χ² = ${response.chiSquared.toExponential(3)}`,
       )
       console.log(
         'Fitted params:',
-        result.params.map((p, i) => {
+        response.fittedValues.map((p, i) => {
           const ref = paramRefs[i]!
           return `${ref.node.id}.${ref.param} = ${p.toPrecision(4)}`
         }),
       )
 
-      // Write fitted values back to the circuit tree
       for (let i = 0; i < paramRefs.length; i++) {
         const ref = paramRefs[i]!
-        ref.node[ref.param] = Math.min(Math.max(result.params[i] ?? 1e-3, 1e-25), 1e25)
+        ref.node[ref.param] = Math.min(Math.max(response.fittedValues[i] ?? 1e-3, 1e-25), 1e25)
       }
       onRedraw()
     } catch (err) {

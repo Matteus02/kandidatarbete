@@ -16,7 +16,7 @@ type ElementInfo = { type: ElementType; value: number; value2?: number }
 // Order matters: CPE and Wo/Ws must be checked before W and C to avoid partial matches.
 function parseElementInfo(id: string): ElementInfo | null {
   const s = id.trim()
-  if (s.startsWith('CPE')) return { type: 'CPE', value: 1e-5 }
+  if (s.startsWith('CPE')) return { type: 'CPE', value: 1e-5, value2: 0.85 }
   if (s.startsWith('Wo'))  return { type: 'Wo',  value: 100, value2: 1.0 }
   if (s.startsWith('Ws'))  return { type: 'Ws',  value: 100, value2: 1.0 }
   if (s.startsWith('W'))   return { type: 'W',   value: 100 }

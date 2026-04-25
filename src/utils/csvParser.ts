@@ -46,6 +46,9 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
 
   if (headerIndex !== -1) {
     const cleanCsvText = lines.slice(headerIndex).join('\n')
+    // Tracks whether the imaginary column already represents -Im(Z) (positive for capacitive).
+    // Set inside transformHeader based on the original column name, then used in the row mapper.
+    let imaginaryAlreadyNegated = true
     results = Papa.parse(cleanCsvText, {
       header: true,
       delimiter: delimiter,
@@ -53,7 +56,16 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
       transformHeader: (header) => {
         const h = header.toLowerCase().trim()
         if (h.includes('freq') || h === 'f' || h.includes('(hz)')) return 'freq/Hz'
-        if (h.includes('z\'\'') || h.includes('z\"') || h.includes('im(z)') || h.includes('z2') || h.includes('imag')) return '-Im(Z)/Ohm'
+        // Headers that already represent -Im(Z) (z'', z", -im...): sign is correct as-is
+        if (h.includes("z''") || h.includes('z"') || h.startsWith('-im') || h.includes('-im(z)')) {
+          imaginaryAlreadyNegated = true
+          return '-Im(Z)/Ohm'
+        }
+        // Headers that represent Im(Z) without negation: values will be negative for capacitive → flip
+        if (h.includes('im(z)') || h.includes('z2') || h.includes('imag')) {
+          imaginaryAlreadyNegated = false
+          return '-Im(Z)/Ohm'
+        }
         if (h.includes('z\'') || h.includes('re(z)') || h.includes('z1') || h.includes('real')) return 'Re(Z)/Ohm'
         if (h.includes('|z|') || h.includes('mag')) return '|Z|/Ohm'
         if (h.includes('phase')) return 'Phase(Z)/deg'
@@ -113,8 +125,8 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
 
       if (isNaN(freq) || isNaN(re) || isNaN(im)) return null
 
-      if (im < 0 && !Object.keys(row).some(k => k.toLowerCase().includes('-im'))) {
-          im = -im
+      if (im < 0 && !imaginaryAlreadyNegated) {
+        im = -im
       }
 
       if (isNaN(mag)) mag = Math.sqrt(re * re + im * im)

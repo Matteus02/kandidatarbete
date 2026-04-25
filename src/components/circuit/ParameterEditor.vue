@@ -19,15 +19,16 @@ const emit = defineEmits<{
 const UNITS: Partial<Record<ElementType, string>> = {
   R:   'Ω',
   C:   'F',
-  CPE: 'Q  (n = 0.85)',
+  CPE: 'Q',
   W:   'Ω·s⁻⁰·⁵',
   Wo:  'Rw  (Ω)',
   Ws:  'Rw  (Ω)',
   L:   'H',
 }
 
-// Units for the second parameter — only Wo and Ws have one
+// Units for the second parameter — CPE (n), Wo and Ws (τ)
 const UNITS2: Partial<Record<ElementType, string>> = {
+  CPE: 'n',
   Wo: 'τ  (s)',
   Ws: 'τ  (s)',
 }
@@ -36,13 +37,20 @@ function onInput(node: CircuitNode, param: 'value' | 'value2', raw: string) {
   const parsed = parseFloat(raw)
   if (!isNaN(parsed)) emit('change', node, param, parsed)
 }
+
+function fmt(v: number | undefined): string {
+  if (v == null) return ''
+  const abs = Math.abs(v)
+  if (abs !== 0 && (abs < 0.01 || abs >= 1e6)) return v.toExponential(3)
+  return parseFloat(v.toPrecision(4)).toString()
+}
 </script>
 
 <template>
   <div class="param-grid">
     <template v-for="node in nodes" :key="node.id">
 
-      <!-- Single-parameter elements (R, C, CPE, W, L) -->
+      <!-- Single-parameter elements (R, C, W, L) -->
       <div v-if="!UNITS2[node.type as ElementType]" class="param-item">
         <label class="param-label">
           {{ node.id }}
@@ -50,14 +58,13 @@ function onInput(node: CircuitNode, param: 'value' | 'value2', raw: string) {
         </label>
         <input
           class="param-input"
-          type="number"
-          :value="node.value"
-          step="any"
+          type="text"
+          :value="fmt(node.value)"
           @change="(e) => onInput(node, 'value', (e.target as HTMLInputElement).value)"
         />
       </div>
 
-      <!-- Two-parameter elements (Wo, Ws): grouped card showing ID once -->
+      <!-- Two-parameter elements (CPE, Wo, Ws): grouped card showing ID once -->
       <div v-else class="param-group">
         <div class="param-group-title">{{ node.id }}</div>
         <div class="param-item">
@@ -66,9 +73,8 @@ function onInput(node: CircuitNode, param: 'value' | 'value2', raw: string) {
           </label>
           <input
             class="param-input"
-            type="number"
-            :value="node.value"
-            step="any"
+            type="text"
+            :value="fmt(node.value)"
             @change="(e) => onInput(node, 'value', (e.target as HTMLInputElement).value)"
           />
         </div>
@@ -78,9 +84,8 @@ function onInput(node: CircuitNode, param: 'value' | 'value2', raw: string) {
           </label>
           <input
             class="param-input"
-            type="number"
-            :value="node.value2"
-            step="any"
+            type="text"
+            :value="fmt(node.value2)"
             @change="(e) => onInput(node, 'value2', (e.target as HTMLInputElement).value)"
           />
         </div>
