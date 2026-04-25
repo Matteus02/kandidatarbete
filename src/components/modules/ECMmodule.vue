@@ -135,7 +135,7 @@ function drawPlots() {
       modelMag.push(Math.sqrt(z.re * z.re + z.im * z.im))
     }
     const modelPhase = modelRe.map((re, i) =>
-      (Math.atan2(-modelIm[i]!, re) * 180) / Math.PI,
+      (Math.atan2(modelIm[i]!, re) * 180) / Math.PI,
     )
 
     const modelNyq = { x: modelRe, y: modelIm, mode: 'lines' as const, line: { color: '#e74c3c', width: 2 }, type: 'scatter' as const, name: 'Model' }
