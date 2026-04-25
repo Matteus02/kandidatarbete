@@ -75,59 +75,191 @@ export function useLMFitting(
     const data = getEisData()
     if (data.length === 0) return
 
+    // Sort high→low frequency (standard EIS presentation order)
     const sorted = [...data].sort((a, b) => b['freq/Hz'] - a['freq/Hz'])
-    const reZ    = sorted.map(d => d['Re(Z)/Ohm'])
-    const imZ    = sorted.map(d => d['-Im(Z)/Ohm'])
-    const freq   = sorted.map(d => d['freq/Hz'])
+    const reZ  = sorted.map(d => d['Re(Z)/Ohm'])
+    const imZ  = sorted.map(d => d['-Im(Z)/Ohm'])  // positive = capacitive (EIS convention)
+    const freq = sorted.map(d => d['freq/Hz'])
+    const N    = sorted.length
 
-    const zHF       = Math.min(...reZ)
-    const totalArc  = Math.max(...reZ) - zHF
-    const maxImIdx  = imZ.indexOf(Math.max(...imZ))
-    const peakFreq  = freq[maxImIdx] ?? freq[0] ?? 1
-    const omegaPeak = 2 * Math.PI * peakFreq
-    const omegaLow  = 2 * Math.PI * (freq[freq.length - 1] ?? 0.01)
+    // ── 1. Series resistance ─────────────────────────────────────────────
+    // Re(Z) at highest frequency: CPE/C are nearly short-circuits at high ω,
+    // so only the ohmic series resistance contributes.
+    const Rs    = Math.max(reZ[0] ?? 1, 1)
+    const ReMax = Math.max(...reZ)
 
-    const allNodes      = collectNodes(rootNode.value)
-    const parallelCount = Math.max(1, allNodes.filter(n => n.type === 'parallel').length)
+    // ── 2. Detect individual RC arcs ─────────────────────────────────────
+    // Each parallel R-(C|CPE) block produces one peak in -Im(Z).
+    // Light 3-point smoothing suppresses noise before peak detection.
+    const smoothed: number[] = imZ.map((_, i) => {
+      const lo = Math.max(0, i - 1)
+      const hi = Math.min(N - 1, i + 1)
+      let s = 0
+      for (let k = lo; k <= hi; k++) s += imZ[k]!
+      return s / (hi - lo + 1)
+    })
+    const globalMaxIm = Math.max(...smoothed, 1e-30)
+    const minProm     = globalMaxIm * 0.05   // ignore spikes < 5 % of the tallest arc
 
-    let seriesRSeen = 0
+    const arcPeaks: { f: number; imPeak: number }[] = []
+    for (let i = 1; i < N - 1; i++) {
+      const v = smoothed[i]!
+      if (v > smoothed[i - 1]! && v >= smoothed[i + 1]! && v >= minProm) {
+        arcPeaks.push({ f: freq[i]!, imPeak: imZ[i]! })
+      }
+    }
+    // Fallback: no local max found (e.g. monotone data) — use global maximum
+    if (arcPeaks.length === 0) {
+      const idx = smoothed.indexOf(globalMaxIm)
+      arcPeaks.push({ f: freq[idx] ?? 1, imPeak: Math.max(imZ[idx] ?? 1, 1) })
+    }
+    // arcPeaks is already ordered high→low frequency because the input is sorted that way.
+
+    // ── 3. Warburg coefficient from low-frequency 45° tail ───────────────
+    // For a semi-infinite Warburg: -Im(Z_W) = A/√(2ω) = (A/√2)·(1/√ω)
+    // Regress imZ vs 1/√ω over the lowest-frequency points; slope = A/√2.
+    const nLow  = Math.max(3, Math.min(7, Math.floor(N / 4)))
+    const lowPts = sorted.slice(N - nLow)
+    let warburgA = Math.max((ReMax - Rs) * Math.sqrt(2 * Math.PI * (freq[N - 1] ?? 0.01)), 1)
+    if (lowPts.length >= 2) {
+      let sumX = 0, sumY = 0, sumXX = 0, sumXY = 0
+      for (const d of lowPts) {
+        const x = 1 / Math.sqrt(2 * Math.PI * Math.max(d['freq/Hz'], 1e-10))
+        const y = d['-Im(Z)/Ohm']
+        sumX  += x;  sumY  += y
+        sumXX += x * x;  sumXY += x * y
+      }
+      const nL  = lowPts.length
+      const det = nL * sumXX - sumX * sumX
+      if (det > 1e-30) {
+        const slope = (nL * sumXY - sumX * sumY) / det   // slope = A / √2
+        warburgA = Math.max(slope * Math.SQRT2, 1)
+      }
+    }
+
+    // ── 4. Walk the circuit tree and assign ──────────────────────────────
+    // arcIdx tracks which detected peak is assigned to the next parallel block
+    // (high-frequency arc → first parallel block, etc.).
+    let arcIdx     = 0
+    let seriesRIdx = 0
+
+    // For a parallel R-CPE arc the peak condition gives R·Q·ωp^n = 1, so:
+    //   Q = 1 / (R · ωp^n)
+    // The -Im(Z) amplitude at the peak equals R/2 · tan(n·π/4), so:
+    //   R = 2 · Im_peak / tan(n·π/4)
+    // For n = 1 (capacitor) this reduces to R = 2 · Im_peak, the standard result.
+    function rFromPeak(imPeak: number, n: number): number {
+      const t = Math.tan((n * Math.PI) / 4)
+      return Math.max((2 * imPeak) / (t > 0 ? t : 1), 1)
+    }
+
+    // Walk a chain (following .next) and return the first C or CPE node found, or null.
+    function findCapInChain(node: CircuitNode | null): CircuitNode | null {
+      if (!node || node.type === 'end') return null
+      if (node.type === 'C' || node.type === 'CPE') return node
+      return findCapInChain(node.next)
+    }
 
     function assignNode(node: CircuitNode | null) {
       if (!node || node.type === 'end') return
-      const arcShare = totalArc / parallelCount
 
       switch (node.type) {
-        case 'R':
-          node.value = seriesRSeen === 0 ? Math.max(zHF, 1) : Math.max(arcShare, 1)
-          seriesRSeen++
-          break
-        case 'C':
-          node.value = 1 / (omegaPeak * Math.max(arcShare, 1))
-          break
-        case 'CPE':
-          node.value  = 1 / (omegaPeak * Math.max(arcShare, 1))
-          node.value2 = 0.85
-          break
-        case 'W': {
-          const reLow = reZ[reZ.length - 1] ?? 100
-          node.value  = Math.max((reLow - zHF) * Math.sqrt(2 * omegaLow), 1)
+        case 'R': {
+          node.value = seriesRIdx === 0
+            ? Rs
+            // Inner series R: use a small fraction of the total Re span as a safe seed
+            : Math.max((ReMax - Rs) * 0.05, 1)
+          seriesRIdx++
           break
         }
-        case 'Wo':
-        case 'Ws':
-          node.value  = Math.max(arcShare * 0.5, 1)
-          node.value2 = Math.max(1 / omegaPeak, 1e-4)
+
+        case 'parallel': {
+          // Consume the next highest-frequency arc peak for this parallel block.
+          const arc    = arcPeaks[arcIdx] ?? arcPeaks[arcPeaks.length - 1] ?? { f: 1, imPeak: (ReMax - Rs) / 2 }
+          arcIdx++
+          const omegaC = 2 * Math.PI * arc.f
+          // Determine n from whichever capacitive element sits in either branch,
+          // then compute one shared R_p so R and C/CPE stay self-consistent.
+          const capNode = findCapInChain(node.upperBranch) ?? findCapInChain(node.lowerBranch)
+          const nEst = capNode?.type === 'CPE' ? 0.85 : 1
+          const Rp   = rFromPeak(arc.imPeak, nEst)
+          assignBranch(node.upperBranch, Rp, omegaC)
+          assignBranch(node.lowerBranch, Rp, omegaC)
           break
+        }
+
+        case 'C':
+        case 'CPE': {
+          // Lone capacitive element outside a parallel block
+          const arc    = arcPeaks[arcIdx] ?? arcPeaks[arcPeaks.length - 1] ?? { f: 1, imPeak: 10 }
+          arcIdx++
+          const Rp     = rFromPeak(arc.imPeak, node.type === 'CPE' ? 0.85 : 1)
+          const omegaC = 2 * Math.PI * arc.f
+          assignCapacitive(node, Rp, omegaC)
+          break
+        }
+
+        case 'W':
+          node.value = warburgA
+          break
+
+        case 'Wo':
+        case 'Ws': {
+          const omegaLow = 2 * Math.PI * (freq[N - 1] ?? 0.01)
+          node.value  = Math.max(warburgA * Math.SQRT2, 1)  // Rw ≈ diffusion plateau
+          node.value2 = Math.max(1 / omegaLow, 1e-4)        // τ ≈ 1 / ω_lowest
+          break
+        }
+
         case 'L': {
           const imHF = imZ[0] ?? 0
-          node.value  = imHF < 0 ? Math.abs(imHF) / (2 * Math.PI * (freq[0] ?? 1)) : 1e-6
+          node.value = imHF < 0
+            ? Math.abs(imHF) / (2 * Math.PI * (freq[0] ?? 1))
+            : 1e-6
           break
         }
       }
 
-      if (node.upperBranch) assignNode(node.upperBranch)
-      if (node.lowerBranch) assignNode(node.lowerBranch)
-      if (node.next)        assignNode(node.next)
+      assignNode(node.next)
+    }
+
+    // Assign a single element inside a parallel branch.
+    // Rp = parallel resistance for this arc, omegaC = arc's characteristic frequency.
+    function assignBranch(node: CircuitNode | null, Rp: number, omegaC: number) {
+      if (!node || node.type === 'end') return
+      switch (node.type) {
+        case 'R':
+          node.value = Rp
+          break
+        case 'C':
+        case 'CPE':
+          assignCapacitive(node, Rp, omegaC)
+          break
+        case 'W':
+          node.value = warburgA
+          break
+        case 'Wo':
+        case 'Ws':
+          node.value  = Math.max(Rp * 0.5, 1)
+          node.value2 = Math.max(1 / omegaC, 1e-4)
+          break
+        case 'L':
+          node.value = 1e-6
+          break
+      }
+      // Follow a chain within the branch (handles nested series elements inside a branch)
+      if (node.next) assignBranch(node.next, Rp, omegaC)
+    }
+
+    function assignCapacitive(node: CircuitNode, Rp: number, omegaC: number) {
+      if (node.type === 'C') {
+        // C = 1 / (R · ω_peak) from the peak condition ω_peak · R · C = 1
+        node.value = 1 / (Math.max(Rp, 1) * omegaC)
+      } else if (node.type === 'CPE') {
+        // Q = 1 / (R · ω_peak^n) from the CPE peak condition R·Q·ω_peak^n = 1
+        node.value2 = 0.85
+        node.value  = 1 / (Math.max(Rp, 1) * Math.pow(omegaC, 0.85))
+      }
     }
 
     assignNode(rootNode.value)
