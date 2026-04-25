@@ -3,11 +3,21 @@
 // Provides two functions:
 //
 //   estimateInitialValues
-//     Reads three features from the Nyquist plot shape to set physically
-//     meaningful starting parameters before optimisation:
-//       - High-frequency intercept  → first series R
-//       - Semicircle arc diameter   → parallel R values and C/CPE frequencies
-//       - Low-frequency tail        → Warburg coefficient
+//     Reads five features from the EIS spectrum to set physically meaningful
+//     starting parameters before optimisation:
+//       - Re(Z) at highest frequency      → first series R (ohmic intercept)
+//       - -Im(Z) peak amplitudes          → parallel R per arc,
+//                                           via R = 2·Im_peak / tan(n·π/4)
+//       - -Im(Z) peak frequencies         → C or CPE-Q per arc,
+//                                           via C = 1/(R·ωp) or Q = 1/(R·ωp^n)
+//       - Low-frequency 1/√ω regression  → Warburg coefficient A (W, Wo, Ws);
+//                                           Wo/Ws also get τ = 1/ω_lowest
+//       - High-frequency Im(Z) sign       → inductance L = |Im(Z_HF)| / ω_HF
+//                                           (only when Im(Z) is negative at HF)
+//     Arc peaks are detected with light 3-point smoothing and a 5 % prominence
+//     threshold; if no peak is found the global -Im(Z) maximum is used as a
+//     fallback. Peaks are consumed in high-to-low frequency order, matching
+//     parallel blocks encountered during the tree walk.
 //
 //   fitModel
 //     Sends the circuit tree and EIS data to a Web Worker that runs the
