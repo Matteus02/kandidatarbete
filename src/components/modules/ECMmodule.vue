@@ -7,10 +7,10 @@
 //   3. Watches the Pinia store for AI-suggested circuits and loads them.
 //
 // Logic is delegated to:
-//   useCircuitTree    — circuit tree state, drag-drop, node mutations
-//   useCircuitFitting — heuristic initialisation and Nelder-Mead fitting
-//   CircuitPalette    — drag-and-drop element palette UI
-//   ParameterEditor   — parameter input grid UI
+//   useCircuitTree — circuit tree state, drag-drop, node mutations
+//   useLMFitting   — heuristic initialisation and Levenberg-Marquardt fitting
+//   CircuitPalette — drag-and-drop element palette UI
+//   ParameterEditor — parameter input grid UI
 
 import { ref, computed, watch, onMounted, provide } from 'vue'
 import Plotly from 'plotly.js-dist-min'
@@ -21,9 +21,9 @@ import ParameterEditor from '@/components/circuit/ParameterEditor.vue'
 import type { EisDataPoint } from '@/types/eis'
 import type { CircuitNode }  from '@/components/circuit/CircuitNode'
 import { useEisStore }       from '@/stores/eis'
-import { useCircuitTree }    from '@/composables/useCircuitTree'
-import { useCircuitFitting } from '@/composables/useCircuitFitting'
-import { zOfChain }          from '@/utils/circuitImpedance'
+import { useCircuitTree } from '@/composables/useCircuitTree'
+import { useLMFitting }   from '@/composables/useLMFitting'
+import { zOfChain }       from '@/utils/circuitImpedance'
 import { buildTreeFromString } from '@/utils/circuitParser'
 
 const props = defineProps<{ eisData: EisDataPoint[] }>()
@@ -159,11 +159,10 @@ function onRedraw() {
   if (showModel.value) drawPlots()
 }
 
-const { isFitting, estimateInitialValues, fitModel } = useCircuitFitting(
+const { isFitting, estimateInitialValues, fitModel } = useLMFitting(
   rootNode,
   () => props.eisData,
   collectNodes,
-  zOfChain,
   onRedraw,
 )
 
