@@ -16,8 +16,9 @@ const ELEMENT_DEFAULTS: Partial<Record<ElementType, number>> = {
   R: 100, C: 1e-6, CPE: 1e-5, W: 100, Wo: 100, Ws: 100, L: 1e-6,
 }
 
-// Default second parameter (τ) for the two-parameter Warburg elements.
+// Default second parameter for two-param elements: n for CPE, τ for Wo/Ws.
 const ELEMENT_DEFAULTS2: Partial<Record<ElementType, number>> = {
+  CPE: 0.85,
   Wo: 1.0,
   Ws: 1.0,
 }

@@ -53,3 +53,8 @@ export function csinh(z: Complex): Complex {
   const em = cexp({ re: -z.re, im: -z.im })
   return { re: (ep.re - em.re) / 2, im: (ep.im - em.im) / 2 }
 }
+
+// Magnitude: |z| = sqrt(re² + im²)
+export function abs(z: Complex): number {
+  return Math.sqrt(z.re * z.re + z.im * z.im)
+}
