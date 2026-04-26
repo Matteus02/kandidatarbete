@@ -37,15 +37,15 @@ const isValidating = ref(false)
 
 function runValidation() {
   if (props.dataPoints.length === 0) return
-  
+
   isValidating.value = true
-  
+
   // Small delay for UX feedback
   setTimeout(() => {
     const freqs = props.dataPoints.map(d => d['freq/Hz'])
     const zReal = props.dataPoints.map(d => d['Re(Z)/Ohm'])
     const zImag = props.dataPoints.map(d => d['-Im(Z)/Ohm'])
-    
+
     const result = performKKTest(freqs, zReal, zImag)
     props.localStore.setKkResult(result)
     isValidating.value = false
@@ -64,13 +64,13 @@ function getStatusClass(isConsistent: boolean) {
         <p>No data loaded.</p>
         <p class="hint">Upload a CSV file to see statistics.</p>
       </div>
-      
+
       <div v-else class="stats-list">
         <div class="stat-item">
           <span class="label">Data Points:</span>
           <span class="value">{{ stats.count }}</span>
         </div>
-        
+
         <div class="stat-divider">Frequency Range</div>
         <div class="stat-item">
           <span class="label">Min:</span>
@@ -91,8 +91,8 @@ function getStatusClass(isConsistent: boolean) {
           <span class="value">{{ formatNum(stats.maxZ) }} Ω</span>
         </div>
 
-        <div class="stat-divider">KK Validation</div>
-        
+        <div class="stat-divider">Kramers-Kronig Validation</div>
+
         <div v-if="localStore.kkResult" class="kk-result">
           <div class="kk-badge-row">
             <span :class="['kk-status-badge', getStatusClass(localStore.kkResult.isConsistent)]">
@@ -103,9 +103,9 @@ function getStatusClass(isConsistent: boolean) {
           <p class="kk-message">{{ localStore.kkResult.message }}</p>
         </div>
 
-        <button 
-          class="kk-btn" 
-          :disabled="isValidating" 
+        <button
+          class="kk-btn"
+          :disabled="isValidating"
           @click="runValidation"
         >
           <span v-if="isValidating">Evaluating...</span>

@@ -46,21 +46,20 @@ const onFileChange = (event: Event) => {
   <BaseCard title="Data Upload">
     <div class="data-panel">
       <p v-if="!fileName" class="instruction">Choose a .csv-file to begin analysis!</p>
-      
+
       <div v-if="fileName" class="active-file-info">
         <div class="file-name-display">
-          <span class="file-icon">📄</span>
           <span class="name-text" :title="fileName">{{ fileName }}</span>
         </div>
         <div class="success-message">File loaded successfully.</div>
       </div>
 
       <div class="file-input-wrapper">
-        <input 
-          type="file" 
-          :id="inputId" 
-          @change="onFileChange" 
-          accept=".csv" 
+        <input
+          type="file"
+          :id="inputId"
+          @change="onFileChange"
+          accept=".csv"
           class="hidden-input"
         />
         <label :for="inputId" class="file-label" :class="{ 'file-label--change': fileName }">
@@ -102,10 +101,6 @@ const onFileChange = (event: Event) => {
   min-width: 0;
 }
 
-.file-icon {
-  font-size: 16px;
-  flex-shrink: 0;
-}
 
 .name-text {
   font-size: 13px;

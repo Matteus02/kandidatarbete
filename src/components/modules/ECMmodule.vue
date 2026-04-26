@@ -1,30 +1,23 @@
 <script setup lang="ts">
 // ECM Builder — Interactive equivalent circuit modelling for EIS data.
-//
-// Responsibilities of this component (the "glue"):
-//   1. Owns the Plotly plots (Nyquist + Bode) and redraws them when needed.
-//   2. Wires up the three sub-systems via composables and sub-components.
-//   3. Watches the Pinia store for AI-suggested circuits and loads them.
-//
-// Logic is delegated to:
-//   useCircuitTree — circuit tree state, drag-drop, node mutations
-//   useLMFitting   — heuristic initialisation and Levenberg-Marquardt fitting
-//   CircuitPalette — drag-and-drop element palette UI
-//   ParameterEditor — parameter input grid UI
+// Refactored to use a tabbed interface (Builder | Validate).
 
-import { ref, computed, watch, provide, onMounted } from 'vue'
+import { ref, computed, watch, provide, onMounted, reactive } from 'vue'
 import BaseCard        from '@/components/ui/BaseCard.vue'
-import CircuitRenderer from '@/components/circuit/CircuitRenderer.vue'
-import CircuitPalette  from '@/components/circuit/CircuitPalette.vue'
+import BaseTabs        from '@/components/ui/BaseTabs.vue'
 import ParameterEditor from '@/components/circuit/ParameterEditor.vue'
+import ECMBuilderTab   from './ECMBuilderTab.vue'
+import ECMValidateTab  from './ECMValidateTab.vue'
 import type { EisDataPoint, LocalStore } from '@/types/eis'
 import type { CircuitNode }  from '@/components/circuit/CircuitNode'
 import { useCircuitTree } from '@/composables/useCircuitTree'
 import { useLMFitting }   from '@/composables/useLMFitting'
 import { useCircuitModel, type ModelData } from '@/composables/useCircuitModel'
 import { buildTreeFromString } from '@/utils/circuitParser'
+import { calculateChiSquared } from '@/utils/chiSquared'
+import { calculateResiduals } from '@/utils/residuals'
 
-const props = defineProps<{ 
+const props = defineProps<{
   eisData: EisDataPoint[]
   localStore: LocalStore
   sidebarTargetId: string
@@ -39,7 +32,14 @@ onMounted(() => {
   isMounted.value = true
 })
 
-// ── Circuit tree ─────────────────────────────────────────────────────────────
+// ── Tab Management ───────────────────────────────────────────────────────────
+const activeTab = ref('builder')
+const tabs = [
+  { id: 'builder', label: 'Circuit Builder' },
+  { id: 'validate', label: 'Validate Model' }
+] as const
+
+// ── Circuit tree logic (Parent-owned) ────────────────────────────────────────
 const {
   rootNode, renderVersion, collectNodes, resetCounters,
   handleNodeDrop, insertIntoEmptyBranch, deleteNode,
@@ -53,26 +53,41 @@ const isDragging = ref(false)
 provide('isDragging', isDragging)
 
 const editableNodes = computed(() => {
-  // Access renderVersion to ensure re-computation when tree structure changes
   void renderVersion.value
   return collectNodes(rootNode.value)
 })
 
-// ── Model calculation ────────────────────────────────────────────────────────
+// ── Model calculation logic (Parent-owned) ───────────────────────────────────
 const showModel = ref(false)
 const frequencies = computed(() => props.eisData.map(d => d['freq/Hz']))
 const { modelData } = useCircuitModel(rootNode, frequencies, renderVersion)
 
-// Sync model data with parent for plotting
 watch([modelData, showModel], ([newModel, shouldShow]) => {
   emit('update:model', shouldShow ? newModel : null)
 }, { immediate: true })
+
+// ── Validation State (Hoisted) ───────────────────────────────────────────────
+const validationState = reactive({
+  chiSquared: null as number | null,
+  residuals: { re: [] as number[], im: [] as number[] }
+})
+
+function evaluateModel() {
+  if (!modelData.value || props.eisData.length === 0) return
+
+  const measRe = props.eisData.map(d => d['Re(Z)/Ohm'])
+  const measIm = props.eisData.map(d => -d['-Im(Z)/Ohm'])
+  const modRe = modelData.value.re
+  const modIm = modelData.value.im.map(v => -v)
+
+  validationState.chiSquared = calculateChiSquared(measRe, measIm, modRe, modIm)
+  validationState.residuals = calculateResiduals(measRe, measIm, modRe, modIm)
+}
 
 // ── Parameter changes ────────────────────────────────────────────────────────
 
 function onParamChange(node: CircuitNode, param: 'value' | 'value2', value: number) {
   node[param] = value
-  // Increment renderVersion to trigger useCircuitModel re-calculation
   renderVersion.value++
 }
 
@@ -112,60 +127,65 @@ watch(
 </script>
 
 <template>
-  <BaseCard title="ECM Builder" @dragstart.capture="isDragging = true" @dragend.capture="isDragging = false">
+  <BaseCard title="Equivalent Circuit Modeling" @dragstart.capture="isDragging = true" @dragend.capture="isDragging = false">
+    <BaseTabs v-model="activeTab" :tabs="tabs">
+      <div class="ecm-tab-content">
+        <ECMBuilderTab
+          v-if="activeTab === 'builder'"
+          :root-node="rootNode"
+          :render-version="renderVersion"
+          :ai-applied-circuit="aiAppliedCircuit"
+        />
+        <ECMValidateTab
+          v-else-if="activeTab === 'validate'"
+          :root-node="rootNode"
+          :eis-data="eisData"
+          :model-data="modelData"
+          :validation-state="validationState"
+          @evaluate="evaluateModel"
+        />
+      </div>
+    </BaseTabs>
 
-    <!-- Banner shown when a circuit was loaded from the AI tab -->
-    <div v-if="aiAppliedCircuit" class="ai-banner">
-      AI suggestion loaded: <code>{{ aiAppliedCircuit }}</code>
-    </div>
-
-    <!-- SVG circuit canvas (key forces full re-render on every tree change) -->
-    <div class="section-label">Circuit</div>
-    <div class="canvas-wrap">
-      <svg class="circuit-svg" width="900" height="250" style="overflow: visible" :key="renderVersion">
-        <CircuitRenderer :node="rootNode" :x="50" :y="125" />
-      </svg>
-    </div>
-
-    <!-- Drag-and-drop element palette + usage instructions -->
-    <CircuitPalette />
-
-    <!-- Teleport the parameters and fit buttons to the sidebar -->
+    <!-- Teleport the parameters and fit buttons to the sidebar (Always mounted) -->
     <Teleport :to="'#' + sidebarTargetId" v-if="isMounted">
       <BaseCard title="Circuit Parameters">
         <div class="section-label" style="margin-top: 0;">
           Parameters
-          <span class="hint">(edit manually, or use the buttons below)</span>
         </div>
-        <ParameterEditor :nodes="editableNodes" @change="onParamChange" @rename="onRename" />
+        <ParameterEditor
+          :nodes="editableNodes"
+          @change="onParamChange"
+          @rename="onRename"
+        />
 
         <!-- Action buttons -->
         <div class="sidebar-actions">
           <div class="action-row-secondary">
-            <button class="btn btn--outline" :disabled="props.eisData.length === 0"
+            <button class="btn btn--outline" :disabled="eisData.length === 0"
               @click="showModel = true">
               {{ showModel ? 'Update Plot' : 'Plot Circuit' }}
             </button>
-            <button class="btn btn--outline" :disabled="props.eisData.length === 0"
+            <button class="btn btn--outline" :disabled="eisData.length === 0"
               @click="estimateInitialValues">
-              Estimate
+              Estimate Parameters
             </button>
           </div>
-          <button class="btn btn--primary" :disabled="isFitting || props.eisData.length === 0"
+          <button class="btn btn--primary" :disabled="isFitting || eisData.length === 0"
             @click="fitModel">
             {{ isFitting ? 'Fitting…' : 'Fit Parameters (Auto)' }}
           </button>
+          <span class="hint">Auto fits parameters using Levenberg Marquards algorithm</span>
         </div>
       </BaseCard>
     </Teleport>
-
   </BaseCard>
 </template>
 
-
 <style scoped>
-.plot-row { display: flex; gap: 10px; justify-content: center; }
-.plot     { flex: 1; min-width: 0; }
+.ecm-tab-content {
+  padding-top: 10px;
+}
 
 .section-label {
   font-size: 13px;
@@ -173,16 +193,6 @@ watch(
   color: #555;
   margin: 14px 0 6px;
 }
-
-.canvas-wrap {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background: #fafafa;
-  overflow-x: auto;
-  padding: 8px 0;
-}
-
-.circuit-svg { display: block; }
 
 .sidebar-actions {
   display: flex;
@@ -233,27 +243,10 @@ watch(
   background: #f0f7ff;
 }
 
-.btn--secondary {
-  background: #6c757d;
-  color: white;
-}
-
 .hint {
   font-weight: 400;
   font-size: 11px;
   color: #aaa;
   margin-left: 6px;
-}
-
-.no-data-hint { margin-top: 6px; font-size: 13px; color: #888; }
-
-.ai-banner {
-  padding: 8px 12px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 4px;
-  font-size: 13px;
-  color: #1e40af;
-  margin-bottom: 10px;
 }
 </style>
