@@ -56,14 +56,30 @@ export function useCircuitTree() {
     counters.W = 0; counters.Wo = 0; counters.Ws = 0
     counters.L = 0; counters.P = 0
 
-    const all = collectNodes(rootNode.value)
-    for (const node of all) {
+    // We need a traversal that includes parallel nodes to reset the P counter
+    const visited = new Set<string>()
+    function walk(node: CircuitNode | null) {
+      if (!node || visited.has(node.id)) return
+      visited.add(node.id)
+
       const match = node.id.match(/^([A-Za-z]+)(\d+)$/)
-      if (!match || !match[1] || !match[2]) continue
-      const prefix = match[1] as keyof typeof counters
-      const num    = parseInt(match[2], 10) + 1
-      if (prefix in counters && num > counters[prefix]) counters[prefix] = num
+      if (match && match[1] && match[2]) {
+        const prefix = match[1]
+        const num    = parseInt(match[2], 10) + 1
+        
+        // Handle both uppercase 'P' in counters and potential lowercase 'p' in IDs
+        const key = prefix.toUpperCase() === 'P' ? 'P' : prefix as keyof typeof counters
+        if (key in counters && num > counters[key]) {
+          counters[key] = num
+        }
+      }
+
+      if (node.upperBranch) walk(node.upperBranch)
+      if (node.lowerBranch) walk(node.lowerBranch)
+      if (node.next)        walk(node.next)
     }
+
+    walk(rootNode.value)
   }
 
   // ── Tree traversal ────────────────────────────────────────────────────────

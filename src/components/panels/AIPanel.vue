@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
-import type { EisDataPoint } from '@/types/eis'
+import type { EisDataPoint, LocalStore } from '@/types/eis'
 import type { InferenceRequest, InferenceResponse } from '@/ai/workerProtocol'
 import InferenceWorker from '@/workers/eisInference.worker.ts?worker'
 
 const props = defineProps<{ 
   eisData: EisDataPoint[]
-  localStore: any // Using any for simplicity in this refactor, but it matches the store interface
+  localStore: LocalStore
 }>()
 const emit = defineEmits<{ (e: 'apply-circuit', circuit: string): void }>()
 
 const isLoading = ref(false)
 const errorMessage = ref<string | null>(null)
 const predictions = computed(() => props.localStore.aiSuggestions)
+const showSuggestions = ref(false)
 
 let worker: Worker | null = null
 
@@ -27,6 +28,9 @@ function getWorker(): Worker {
         return
       }
       props.localStore.setAiSuggestions(event.data.predictions)
+      if (event.data.predictions.length > 0) {
+        showSuggestions.value = true
+      }
     }
     worker.onerror = (e) => {
       isLoading.value = false
@@ -45,7 +49,7 @@ onUnmounted(() => {
 
 function runDetection(): void {
   if (props.eisData.length === 0) {
-    errorMessage.value = 'No EIS data loaded. Upload a file in the Data tab first.'
+    errorMessage.value = 'No EIS data loaded. Upload a file in the Data section first.'
     return
   }
   errorMessage.value = null
@@ -67,7 +71,7 @@ function runDetection(): void {
 <template>
   <BaseCard title="AI Circuit Detection">
     <div v-if="props.eisData.length === 0" class="ai-empty">
-      <p>Load EIS data in the Data tab before running detection.</p>
+      <p>Load EIS data in the Data section before running detection.</p>
     </div>
 
     <template v-else>
@@ -80,11 +84,19 @@ function runDetection(): void {
           <span class="spinner-dot" />
           <span class="spinner-dot" />
         </span>
+
+        <button 
+          v-if="predictions.length > 0 && !isLoading" 
+          class="ai-btn-toggle" 
+          @click="showSuggestions = !showSuggestions"
+        >
+          {{ showSuggestions ? 'Hide Suggestions' : `Show ${predictions.length} Suggestions` }}
+        </button>
       </div>
 
       <p v-if="errorMessage" class="ai-error" role="alert">{{ errorMessage }}</p>
 
-      <ul v-if="predictions.length > 0" class="ai-results">
+      <ul v-if="predictions.length > 0" v-show="showSuggestions" class="ai-results">
         <li v-for="p in predictions" :key="p.circuit" class="ai-result-item">
           <div class="ai-result-header">
             <code class="ai-circuit-label">{{ p.circuit }}</code>
@@ -110,6 +122,7 @@ function runDetection(): void {
 .ai-controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -132,6 +145,21 @@ function runDetection(): void {
 .ai-btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.ai-btn-toggle {
+  background: none;
+  border: none;
+  color: #007bff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  text-decoration: underline;
+}
+
+.ai-btn-toggle:hover {
+  color: #0056b3;
 }
 
 .ai-spinner {
@@ -173,6 +201,18 @@ function runDetection(): void {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Custom scrollbar for predictions */
+.ai-results::-webkit-scrollbar {
+  width: 4px;
+}
+.ai-results::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 4px;
 }
 
 .ai-result-item {

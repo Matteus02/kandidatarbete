@@ -55,6 +55,7 @@ const updateSampleName = (id: string, name: string) => {
       @add="addSample"
       @remove="removeSample"
       @select="selectSample"
+      @rename="updateSampleName"
     />
 
     <main class="app__main">
@@ -63,7 +64,10 @@ const updateSampleName = (id: string, name: string) => {
         :key="sample.id"
         v-show="activeSampleId === sample.id"
       >
-        <SampleWorkspace @update-name="(name) => updateSampleName(sample.id, name)" />
+        <SampleWorkspace 
+          :id="sample.id"
+          @update-name="(name) => updateSampleName(sample.id, name)" 
+        />
       </div>
     </main>
   </div>
