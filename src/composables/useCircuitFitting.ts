@@ -21,6 +21,7 @@ import type { Ref } from 'vue'
 import type { CircuitNode } from '@/components/circuit/CircuitNode'
 import type { EisDataPoint } from '@/types/eis'
 import type { Complex } from '@/utils/complexMath'
+import { CPE_N } from '@/utils/circuitImpedance'
 import * as fmin from 'fmin'
 
 type ZChainFn  = (node: CircuitNode | null, omega: number) => Complex
@@ -48,48 +49,52 @@ export function useCircuitFitting(
     const freq   = sorted.map(d => d['freq/Hz'])
 
     // Three Nyquist features used to seed the parameters
-    const zHF       = Math.min(...reZ)                              // high-freq Re(Z) intercept
-    const totalArc  = Math.max(...reZ) - zHF                       // diameter of dominant semicircle
+    const zHF       = Math.min(...reZ)
+    const totalArc  = Math.max(...reZ) - zHF
     const maxImIdx  = imZ.indexOf(Math.max(...imZ))
-    const peakFreq  = freq[maxImIdx] ?? freq[0] ?? 1               // frequency at arc peak
+    const peakFreq  = freq[maxImIdx] ?? freq[0] ?? 1
     const omegaPeak = 2 * Math.PI * peakFreq
     const omegaLow  = 2 * Math.PI * (freq[freq.length - 1] ?? 0.01)
 
-    // Divide the arc diameter evenly across all parallel blocks in the circuit
-    const allNodes     = collectNodes(rootNode.value)
-    const parallelCount = Math.max(1, allNodes.filter(n => n.type === 'parallel').length)
+    // Count parallel blocks by walking the full tree.
+    // (collectNodes skips 'parallel' nodes so it cannot be used here.)
+    const parallelCount = Math.max(1, countParallelBlocks(rootNode.value))
+    const arcShare      = totalArc / parallelCount
 
     let seriesRSeen = 0
 
     function assignNode(node: CircuitNode | null) {
       if (!node || node.type === 'end') return
-      const arcShare = totalArc / parallelCount
 
       switch (node.type) {
         case 'R':
-          // First R in series → high-freq intercept (electrolyte resistance)
-          // Subsequent R → share of the total arc diameter
           node.value = seriesRSeen === 0 ? Math.max(zHF, 1) : Math.max(arcShare, 1)
           seriesRSeen++
           break
         case 'C':
-        case 'CPE':
-          // C = 1 / (ω_peak · R_arc)  — from the RC time-constant at the arc peak
           node.value = 1 / (omegaPeak * Math.max(arcShare, 1))
           break
+        case 'CPE':
+          // For CPE the time-constant relation is ω_peak = (1/(R·Q))^(1/n),
+          // so Q = 1 / (R · ω_peak^n).  Using plain ω (n=1) gives Q ~3× too
+          // small at typical frequencies, which makes the model arc too large.
+          node.value = 1 / (Math.pow(omegaPeak, CPE_N) * Math.max(arcShare, 1))
+          break
         case 'W': {
-          // Semi-infinite Warburg: Re(Z_W) = A / √(2ω)  →  A = Re_low · √(2ω_low)
           const reLow = reZ[reZ.length - 1] ?? 100
-          node.value  = Math.max((reLow - zHF) * Math.sqrt(2 * omegaLow), 1)
+          // Subtract the parallel-block R contributions so we don't double-count
+          // them as Warburg. If the lowest-frequency point is still inside the
+          // RC arc region the remainder may be ≤ 0; fall back to a small value.
+          const reWarburg = Math.max(reLow - zHF - totalArc, 0)
+          node.value = Math.max(reWarburg * Math.sqrt(2 * omegaLow), arcShare * 0.1)
           break
         }
         case 'Wo':
         case 'Ws':
-          node.value  = Math.max(arcShare * 0.5, 1)       // Rw (DC resistance)
-          node.value2 = Math.max(1 / omegaPeak, 1e-4)     // τ (diffusion time constant)
+          node.value  = Math.max(arcShare * 0.5, 1)
+          node.value2 = Math.max(1 / omegaPeak, 1e-4)
           break
         case 'L': {
-          // Z_L = jωL; if Im(Z) is negative at high frequency the sample is inductive
           const imHF = imZ[0] ?? 0
           node.value  = imHF < 0 ? Math.abs(imHF) / (2 * Math.PI * (freq[0] ?? 1)) : 1e-6
           break
@@ -103,6 +108,16 @@ export function useCircuitFitting(
 
     assignNode(rootNode.value)
     onRedraw()
+  }
+
+  // Counts parallel nodes in the full tree (not just leaf elements).
+  function countParallelBlocks(node: CircuitNode | null): number {
+    if (!node || node.type === 'end') return 0
+    const self = node.type === 'parallel' ? 1 : 0
+    return self
+      + countParallelBlocks(node.upperBranch)
+      + countParallelBlocks(node.lowerBranch)
+      + countParallelBlocks(node.next)
   }
 
   // ── Nelder-Mead Curve Fitting ────────────────────────────────────────────
@@ -135,6 +150,9 @@ export function useCircuitFitting(
         paramRefs.push({ node, param: 'value2' })
       }
     }
+
+    // Snapshot original values so we can restore them if fitting fails.
+    const originalValues = paramRefs.map(p => p.node[p.param])
 
     // Convert to log-space so every parameter starts on the same numerical scale.
     const initialLog = paramRefs.map(p => {
@@ -198,6 +216,12 @@ export function useCircuitFitting(
       }
       onRedraw()
     } catch (err) {
+      // Restore original values so the user's inputs are not overwritten on failure.
+      for (let i = 0; i < paramRefs.length; i++) {
+        paramRefs[i]!.node[paramRefs[i]!.param] = originalValues[i]!
+      }
+      onRedraw()
+
       console.error('Fitting failed details:', err)
       const errorMsg = err instanceof Error ? err.message : String(err)
       if (errorMsg.includes('NaN')) {
