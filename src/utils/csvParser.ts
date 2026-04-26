@@ -43,12 +43,12 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
   }
 
   let results: Papa.ParseResult<any>
+  // Tracks whether the imaginary column already represents -Im(Z) (positive for capacitive).
+  // Set inside transformHeader based on the original column name, then used in the row mapper.
+  let imaginaryAlreadyNegated = true
 
   if (headerIndex !== -1) {
     const cleanCsvText = lines.slice(headerIndex).join('\n')
-    // Tracks whether the imaginary column already represents -Im(Z) (positive for capacitive).
-    // Set inside transformHeader based on the original column name, then used in the row mapper.
-    let imaginaryAlreadyNegated = true
     results = Papa.parse(cleanCsvText, {
       header: true,
       delimiter: delimiter,
