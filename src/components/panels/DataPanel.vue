@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import BaseCard from '@/components/ui/BaseCard.vue'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { EisDataPoint } from '@/types/eis'
 import { parseEisCsv } from '@/utils/csvParser'
 
 const props = defineProps<{
+  id: string
   initialFileName: string
   initialData: EisDataPoint[]
 }>()
+
+const inputId = computed(() => `eis-upload-${props.id}`)
 
 const fileName = ref(props.initialFileName)
 const parsedData = ref<EisDataPoint[]>(props.initialData)
@@ -42,23 +45,27 @@ const onFileChange = (event: Event) => {
 <template>
   <BaseCard title="Data Upload">
     <div class="data-panel">
-      <p class="instruction">Choose a .csv-file to begin analysis!</p>
+      <p v-if="!fileName" class="instruction">Choose a .csv-file to begin analysis!</p>
       
+      <div v-if="fileName" class="active-file-info">
+        <div class="file-name-display">
+          <span class="file-icon">📄</span>
+          <span class="name-text" :title="fileName">{{ fileName }}</span>
+        </div>
+        <div class="success-message">File loaded successfully.</div>
+      </div>
+
       <div class="file-input-wrapper">
         <input 
           type="file" 
-          id="eis-upload" 
+          :id="inputId" 
           @change="onFileChange" 
           accept=".csv" 
           class="hidden-input"
         />
-        <label for="eis-upload" class="file-label">
-          {{ fileName || 'Select File...' }}
+        <label :for="inputId" class="file-label" :class="{ 'file-label--change': fileName }">
+          {{ fileName ? 'Change File' : 'Select File...' }}
         </label>
-      </div>
-
-      <div v-if="fileName" class="success-message">
-        File loaded successfully.
       </div>
     </div>
   </BaseCard>
@@ -76,6 +83,37 @@ const onFileChange = (event: Event) => {
   font-size: 13px;
   color: #666;
   margin: 0;
+}
+
+.active-file-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.file-name-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.file-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.name-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .file-input-wrapper {
@@ -114,10 +152,22 @@ const onFileChange = (event: Event) => {
   border-color: #adb5bd;
 }
 
-.success-message {
+.file-label--change {
+  background: white;
+  border-color: #007bff;
+  color: #007bff;
+  padding: 6px 12px;
   font-size: 12px;
+}
+
+.file-label--change:hover {
+  background: #f0f7ff;
+  border-color: #0056b3;
+}
+
+.success-message {
+  font-size: 11px;
   color: #28a745;
-  text-align: center;
   font-weight: 500;
 }
 </style>

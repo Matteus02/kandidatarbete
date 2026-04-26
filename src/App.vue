@@ -55,6 +55,7 @@ const updateSampleName = (id: string, name: string) => {
       @add="addSample"
       @remove="removeSample"
       @select="selectSample"
+      @rename="updateSampleName"
     />
 
     <main class="app__main">

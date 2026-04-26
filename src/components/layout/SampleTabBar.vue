@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 interface SampleTab {
   id: string
   name: string
@@ -13,7 +15,31 @@ const emit = defineEmits<{
   (e: 'select', id: string): void
   (e: 'add'): void
   (e: 'remove', id: string): void
+  (e: 'rename', id: string, name: string): void
 }>()
+
+const editingId = ref<string | null>(null)
+const tempName = ref('')
+
+const startRename = (sample: SampleTab) => {
+  editingId.value = sample.id
+  tempName.value = sample.name
+}
+
+const finishRename = (sample: SampleTab) => {
+  if (editingId.value === sample.id) {
+    const trimmed = tempName.value.trim()
+    if (trimmed && trimmed !== sample.name) {
+      emit('rename', sample.id, trimmed)
+    }
+    editingId.value = null
+  }
+}
+
+// Custom directive to focus the input
+const vFocus = {
+  mounted: (el: HTMLElement) => el.focus()
+}
 </script>
 
 <template>
@@ -25,7 +51,28 @@ const emit = defineEmits<{
       :class="{ 'sample-tab--active': props.activeSampleId === sample.id }"
       @click="emit('select', sample.id)"
     >
-      <span class="sample-tab__name">{{ sample.name }}</span>
+      <div class="sample-tab__content">
+        <input
+          v-if="editingId === sample.id"
+          v-model="tempName"
+          class="sample-tab__input"
+          @blur="finishRename(sample)"
+          @keyup.enter="finishRename(sample)"
+          @click.stop
+          v-focus
+        />
+        <template v-else>
+          <span class="sample-tab__name">{{ sample.name }}</span>
+          <button 
+            class="sample-tab__edit-btn" 
+            title="Rename sample"
+            @click.stop="startRename(sample)"
+          >
+            ✎
+          </button>
+        </template>
+      </div>
+
       <button 
         v-if="props.samples.length > 1"
         class="sample-tab__close" 
@@ -92,12 +139,46 @@ const emit = defineEmits<{
   background: #007bff;
 }
 
+.sample-tab__content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
 .sample-tab__name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 13px;
-  flex: 1;
+}
+
+.sample-tab__input {
+  width: 100%;
+  font-size: 13px;
+  font-weight: inherit;
+  border: 1px solid #007bff;
+  border-radius: 2px;
+  padding: 0 2px;
+  outline: none;
+  background: white;
+}
+
+.sample-tab__edit-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  color: #007bff;
+  opacity: 0;
+  transition: opacity 0.2s;
+  padding: 2px;
+  line-height: 1;
+}
+
+.sample-tab:hover .sample-tab__edit-btn {
+  opacity: 1;
 }
 
 .sample-tab__close {

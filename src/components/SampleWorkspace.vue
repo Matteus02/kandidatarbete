@@ -5,7 +5,7 @@ import DataInfoPanel from '@/components/panels/DataInfoPanel.vue'
 import EisPlots from '@/components/plots/EisPlots.vue'
 import AIPanel from '@/components/panels/AIPanel.vue'
 import ECMmodule from '@/components/modules/ECMmodule.vue'
-import type { EisDataPoint, Circuit, FitResult } from '@/types/eis'
+import type { EisDataPoint, Circuit, FitResult, KKResult } from '@/types/eis'
 import type { PredictionItem } from '@/ai/workerProtocol'
 import type { ModelData } from '@/composables/useCircuitModel'
 import { parseEisCsv } from '@/utils/csvParser'
@@ -19,6 +19,7 @@ const state = reactive({
   fitParams: null as FitResult | null,
   aiSuggestedCircuit: null as string | null,
   aiSuggestions: [] as PredictionItem[],
+  kkResult: null as KKResult | null,
   isLoading: false,
   error: null as string | null,
 })
@@ -36,6 +37,7 @@ function loadCsv(text: string, name: string): void {
   state.fileName = name
   try {
     state.dataPoints = parseEisCsv(text)
+    state.kkResult = null // Reset validation on new file
   } catch (err) {
     console.error('Error parsing CSV:', err)
     state.dataPoints = []
@@ -50,6 +52,10 @@ function setAiSuggestions(suggestions: PredictionItem[]): void {
   state.aiSuggestions = suggestions
 }
 
+function setKkResult(result: KKResult | null): void {
+  state.kkResult = result
+}
+
 // Mock of the store interface for compatibility with existing components
 const localStore = {
   get rawCsvText() { return state.rawCsvText },
@@ -62,9 +68,11 @@ const localStore = {
   get aiSuggestions() { return state.aiSuggestions },
   get isLoading() { return state.isLoading },
   get error() { return state.error },
+  get kkResult() { return state.kkResult },
   setAiSuggestedCircuit,
   setAiSuggestions,
   loadCsv,
+  setKkResult,
 }
 
 const props = defineProps<{
@@ -98,11 +106,12 @@ const handleUpdateModel = (data: ModelData | null) => {
       <!-- Left Sidebar: Data & Info -->
       <aside class="workspace-sidebar workspace-sidebar--left">
         <DataPanel
+          :id="props.id"
           :initial-file-name="state.fileName || ''"
           :initial-data="state.dataPoints"
           @analysis-complete="handleAnalysisComplete"
         />
-        <DataInfoPanel :data-points="state.dataPoints" />
+        <DataInfoPanel :data-points="state.dataPoints" :local-store="localStore" />
       </aside>
 
       <!-- Main Content Column -->

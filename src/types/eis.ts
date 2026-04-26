@@ -11,6 +11,13 @@ export interface EisDataPoint {
   'Phase(Z)/deg': number;
 }
 
+export interface KKResult {
+  isConsistent: boolean
+  rmse: number
+  message: string
+  testedAt: string
+}
+
 export interface LocalStore {
   readonly rawCsvText: string | null
   readonly fileName: string | null
@@ -22,9 +29,11 @@ export interface LocalStore {
   readonly aiSuggestions: PredictionItem[]
   readonly isLoading: boolean
   readonly error: string | null
+  readonly kkResult: KKResult | null
   setAiSuggestedCircuit: (circuit: string | null) => void
   setAiSuggestions: (suggestions: PredictionItem[]) => void
   loadCsv: (text: string, name: string) => void
+  setKkResult: (result: KKResult | null) => void
 }
 
 export type CircuitElementKind = 'R' | 'C' | 'L' | 'CPE' | 'W'
