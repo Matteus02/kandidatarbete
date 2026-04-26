@@ -151,20 +151,21 @@ watch(() => [props.measurements, props.modelTrace], drawPlots, { deep: true })
 
 <style scoped>
 .plots-container {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 20px;
-  justify-content: center;
+  width: 100%;
 }
 
 .plot-box {
-  flex: 1;
-  min-width: 400px;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 @media (max-width: 900px) {
-  .plot-box {
-    min-width: 100%;
+  .plots-container {
+    grid-template-columns: 1fr;
   }
 }
 </style>

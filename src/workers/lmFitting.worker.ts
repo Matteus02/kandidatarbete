@@ -9,7 +9,14 @@ function deserializeNodes(nodes: SerializedNode[], rootId: string): CircuitNode 
   // Pass 1: create all node instances
   const map = new Map<string, CircuitNode>()
   for (const s of nodes) {
-    map.set(s.id, new CircuitNode(s.id, s.type, s.value, s.value2))
+    const node = new CircuitNode(s.id, s.type, s.value, s.value2)
+    node.locked = s.locked
+    node.locked2 = s.locked2
+    node.min = s.min
+    node.max = s.max
+    node.min2 = s.min2
+    node.max2 = s.max2
+    map.set(s.id, node)
   }
 
   // Pass 2: wire up pointer links
@@ -46,7 +53,9 @@ self.onmessage = (event: MessageEvent<FittingRequest>) => {
       for (let i = 0; i < req.paramRefs.length; i++) {
         const ref = req.paramRefs[i]!
         const node = nodeMap.get(ref.nodeId)!
-        node[ref.param] = Math.min(Math.max(params[i] ?? 1e-3, 1e-20), 1e20)
+        const minLim = ref.param === 'value' ? node.min : node.min2
+        const maxLim = ref.param === 'value' ? node.max : node.max2
+        node[ref.param] = Math.min(Math.max(params[i] ?? 1e-3, minLim ?? 1e-20), maxLim ?? 1e20)
       }
       return omegas.map(omega => zOfChain(root, omega))
     }

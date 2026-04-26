@@ -21,6 +21,11 @@ defineProps<{
     <div class="section-label">Circuit</div>
     <div class="canvas-wrap">
       <svg class="circuit-svg" width="900" height="250" style="overflow: visible" :key="renderVersion">
+        <!-- Start Terminal Symbol -->
+        <g transform="translate(15, 125)">
+          <circle cx="0" cy="0" r="4" fill="white" stroke="#333" stroke-width="2" />
+          <line x1="4" y1="0" x2="35" y2="0" stroke="#333" stroke-width="2" />
+        </g>
         <CircuitRenderer :node="rootNode" :x="50" :y="125" />
       </svg>
     </div>

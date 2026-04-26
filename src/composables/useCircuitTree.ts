@@ -25,7 +25,9 @@ const ELEMENT_DEFAULTS2: Partial<Record<ElementType, number>> = {
 
 export function useCircuitTree() {
   // The root of the circuit tree. Changing this ref triggers a full re-render.
-  const rootNode = ref<CircuitNode>(new CircuitNode('R0', 'R', 100))
+  const initialRoot = new CircuitNode('R0', 'R', 100)
+  initialRoot.applyDefaultLimits()
+  const rootNode = ref<CircuitNode>(initialRoot)
 
   // Incremented after every structural change so the SVG can use :key to re-render.
   const renderVersion = ref(0)
@@ -112,6 +114,9 @@ export function useCircuitTree() {
       ELEMENT_DEFAULTS[newType] ?? 100,
       ELEMENT_DEFAULTS2[newType] ?? 1.0,
     )
+    
+    // Apply default physical limits
+    newNode.applyDefaultLimits()
 
     if (action === 'before') {
       newNode.setNext(targetNode)
@@ -149,6 +154,10 @@ export function useCircuitTree() {
       ELEMENT_DEFAULTS[type] ?? 100,
       ELEMENT_DEFAULTS2[type] ?? 1.0,
     )
+    
+    // Apply default physical limits
+    newNode.applyDefaultLimits()
+
     newNode.setEarlier(parentNode)
     if (branch === 'upper') parentNode.upperBranch = newNode
     else                    parentNode.lowerBranch = newNode

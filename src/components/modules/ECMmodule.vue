@@ -96,6 +96,17 @@ function onRename(node: CircuitNode, newId: string) {
   renderVersion.value++
 }
 
+function onToggleLock(node: CircuitNode, paramIndex: 1 | 2) {
+  if (paramIndex === 1) node.locked = !node.locked
+  else node.locked2 = !node.locked2
+  renderVersion.value++
+}
+
+function onUpdateLimit(node: CircuitNode, limit: 'min' | 'max' | 'min2' | 'max2', value: number | null) {
+  node[limit] = value
+  renderVersion.value++
+}
+
 // ── Curve fitting ────────────────────────────────────────────────────────────
 
 function onRedraw() {
@@ -157,6 +168,8 @@ watch(
           :nodes="editableNodes"
           @change="onParamChange"
           @rename="onRename"
+          @toggle-lock="onToggleLock"
+          @update-limit="onUpdateLimit"
         />
 
         <!-- Action buttons -->
@@ -198,7 +211,9 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 24px; /* Increased from 12px */
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
 }
 
 .action-row-secondary {

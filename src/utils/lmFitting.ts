@@ -70,10 +70,17 @@ export function createFlatteningWrapper(
   modelFn: CircuitModelFn,
   omegas: number[],
   weights: number[],
+  minValues: number[],
+  maxValues: number[],
 ) {
   const n = omegas.length
   return (logParams: number[]) => {
-    const params = logParams.map(lp => Math.min(Math.max(Math.exp(lp), 1e-20), 1e20))
+    const params = logParams.map((lp, i) => {
+      const p = Math.exp(lp)
+      const min = minValues[i] ?? 1e-20
+      const max = maxValues[i] ?? 1e20
+      return Math.min(Math.max(p, min), max)
+    })
     const complexZ = modelFn(params, omegas)
     const flat = flattenComplex(complexZ)
     return (xIndex: number): number => {
@@ -140,7 +147,13 @@ export function fitCircuit(options: FitCircuitOptions): FitCircuitResult {
     Math.log(Math.max(v, 1e-20)),
   )
 
-  const wrappedFn = createFlatteningWrapper(modelFn, omegas, weights)
+  const wrappedFn = createFlatteningWrapper(
+    modelFn,
+    omegas,
+    weights,
+    options.minValues ?? initialParams.map(() => 1e-20),
+    options.maxValues ?? initialParams.map(() => 1e20),
+  )
 
   const result = levenbergMarquardt({ x: xIndices, y: yData }, wrappedFn, {
     initialValues: logInitial,

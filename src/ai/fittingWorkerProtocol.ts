@@ -10,6 +10,12 @@ export interface SerializedNode {
   nextId: string | null
   upperBranchId: string | null
   lowerBranchId: string | null
+  locked: boolean
+  locked2: boolean
+  min: number | null
+  max: number | null
+  min2: number | null
+  max2: number | null
 }
 
 export interface FittingRequest {

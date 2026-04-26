@@ -152,7 +152,7 @@ const handleUpdateModel = (data: ModelData | null) => {
 
 .workspace-layout {
   display: grid;
-  grid-template-columns: 280px 1fr 320px;
+  grid-template-columns: 280px 1fr 400px;
   gap: 20px;
   align-items: start;
 }

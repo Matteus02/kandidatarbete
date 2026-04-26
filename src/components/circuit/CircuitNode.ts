@@ -4,6 +4,20 @@ export const HORIZONTAL_SPACING = 30;
 export const NODE_WIDTH = 60;
 export const PARALLEL_SPACING = 21;
 
+// Standard physically meaningful limits for EIS parameters
+export const LIMITS: Record<ElementType, { min: number; max: number; min2?: number; max2?: number }> = {
+  R:        { min: 1e-3,  max: 1e9 },
+  C:        { min: 1e-15, max: 100 },
+  L:        { min: 1e-15, max: 100 },
+  CPE:      { min: 1e-15, max: 100, min2: 0.1, max2: 1.0 },
+  W:        { min: 1e-3,  max: 1e9 },
+  Wo:       { min: 1e-3,  max: 1e9, min2: 1e-6, max2: 1e6 },
+  Ws:       { min: 1e-3,  max: 1e9, min2: 1e-6, max2: 1e6 },
+  parallel: { min: 0,     max: 0 },
+  end:      { min: 0,     max: 0 },
+  empty:    { min: 0,     max: 0 },
+}
+
 export class CircuitNode {
   public id: string;
   public type: ElementType;
@@ -14,6 +28,14 @@ export class CircuitNode {
   public upperBranch: CircuitNode | null;
   public lowerBranch: CircuitNode | null;
 
+  // New constraints properties
+  public locked: boolean = false;
+  public locked2: boolean = false;
+  public min: number | null = null;
+  public max: number | null = null;
+  public min2: number | null = null;
+  public max2: number | null = null;
+
   constructor(id: string, type: ElementType, value: number = 0, value2: number = 1.0) {
     this.id = id;
     this.type = type;
@@ -23,6 +45,14 @@ export class CircuitNode {
     this.next = null;
     this.upperBranch = null;
     this.lowerBranch = null;
+  }
+
+  applyDefaultLimits() {
+    const lim = LIMITS[this.type]
+    this.min = lim.min
+    this.max = lim.max
+    if (lim.min2 !== undefined) this.min2 = lim.min2
+    if (lim.max2 !== undefined) this.max2 = lim.max2
   }
 
   setUpperBranch(node: CircuitNode | null) {
