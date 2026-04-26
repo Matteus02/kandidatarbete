@@ -1,8 +1,8 @@
 <script setup lang="ts">
-// Renders a grid of labeled number inputs for each circuit element's parameters.
+// Renders a vertical list of labeled number inputs for each circuit element's parameters.
 //
-// Most elements have one parameter (e.g. R in Ω, C in F).
-// Two-parameter elements (Wo, Ws) get a second input for τ (the diffusion time constant).
+// This row-based layout provides horizontal space for future features, such as 
+// min/max boundary inputs and lock toggles for parameter fitting.
 //
 // When the user changes a value this component emits a 'change' event instead of
 // modifying the node directly, keeping the data-flow unidirectional.
@@ -15,7 +15,7 @@ const emit = defineEmits<{
   change: [node: CircuitNode, param: 'value' | 'value2', value: number]
 }>()
 
-// Units shown next to each element label in the parameter grid
+// Units shown next to each element label in the parameter list
 const UNITS: Partial<Record<ElementType, string>> = {
   R:   'Ω',
   C:   'F',
@@ -47,30 +47,16 @@ function fmt(v: number | undefined): string {
 </script>
 
 <template>
-  <div class="param-grid">
+  <div class="param-list">
     <template v-for="node in nodes" :key="node.id">
 
-      <!-- Single-parameter elements (R, C, W, L) -->
-      <div v-if="!UNITS2[node.type as ElementType]" class="param-item">
-        <label class="param-label">
-          {{ node.id }}
-          <span class="param-unit">{{ UNITS[node.type as ElementType] ?? '' }}</span>
-        </label>
-        <input
-          class="param-input"
-          type="text"
-          :value="fmt(node.value)"
-          @change="(e) => onInput(node, 'value', (e.target as HTMLInputElement).value)"
-        />
-      </div>
-
-      <!-- Two-parameter elements (CPE, Wo, Ws): grouped card showing ID once -->
-      <div v-else class="param-group">
-        <div class="param-group-title">{{ node.id }}</div>
-        <div class="param-item">
-          <label class="param-label">
-            <span class="param-unit">{{ UNITS[node.type as ElementType] }}</span>
-          </label>
+      <!-- Row for the first parameter -->
+      <div class="param-row">
+        <div class="param-info">
+          <span class="param-id">{{ node.id }}</span>
+          <span class="param-unit-label">{{ UNITS[node.type as ElementType] ?? '' }}</span>
+        </div>
+        <div class="param-input-container">
           <input
             class="param-input"
             type="text"
@@ -78,10 +64,17 @@ function fmt(v: number | undefined): string {
             @change="(e) => onInput(node, 'value', (e.target as HTMLInputElement).value)"
           />
         </div>
-        <div class="param-item">
-          <label class="param-label">
-            <span class="param-unit">{{ UNITS2[node.type as ElementType] }}</span>
-          </label>
+        <!-- Future: space for min/max/lock controls -->
+        <div class="param-controls-placeholder"></div>
+      </div>
+
+      <!-- Optional second row for two-parameter elements (CPE, Wo, Ws) -->
+      <div v-if="UNITS2[node.type as ElementType]" class="param-row param-row--secondary">
+        <div class="param-info">
+          <span class="param-id-hidden">{{ node.id }}</span>
+          <span class="param-unit-label">{{ UNITS2[node.type as ElementType] }}</span>
+        </div>
+        <div class="param-input-container">
           <input
             class="param-input"
             type="text"
@@ -89,6 +82,7 @@ function fmt(v: number | undefined): string {
             @change="(e) => onInput(node, 'value2', (e.target as HTMLInputElement).value)"
           />
         </div>
+        <div class="param-controls-placeholder"></div>
       </div>
 
     </template>
@@ -96,40 +90,71 @@ function fmt(v: number | undefined): string {
 </template>
 
 <style scoped>
-.param-grid {
+.param-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: column;
+  gap: 4px;
   margin-bottom: 14px;
 }
 
-.param-item {
+.param-row {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 110px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  background: #fdfdfd;
+  border: 1px solid #eee;
+  border-radius: 4px;
 }
 
-.param-label {
-  font-size: 11px;
-  font-weight: 600;
+.param-row--secondary {
+  border-top-style: dashed;
+  margin-top: -4px;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  background: #fafafa;
+}
+
+.param-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.param-id {
+  font-size: 12px;
+  font-weight: 700;
   color: #333;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  width: 35px;
 }
 
-.param-unit {
-  font-weight: 400;
-  color: #888;
-  margin-left: 3px;
+.param-id-hidden {
+  font-size: 12px;
+  color: transparent;
+  width: 35px;
+  user-select: none;
+}
+
+.param-unit-label {
+  font-size: 11px;
+  color: #777;
+  white-space: nowrap;
+}
+
+.param-input-container {
+  flex-grow: 1;
+  min-width: 60px;
+  max-width: 100px;
 }
 
 .param-input {
   border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 3px 5px;
+  border-radius: 3px;
+  padding: 3px 6px;
   font-size: 12px;
+  font-family: monospace;
   width: 100%;
   box-sizing: border-box;
 }
@@ -137,27 +162,11 @@ function fmt(v: number | undefined): string {
 .param-input:focus {
   outline: none;
   border-color: #007bff;
+  background: #fff;
 }
 
-.param-group {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  width: 110px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 4px 6px;
-  background: #f8f8f8;
-  box-sizing: border-box;
-}
-
-.param-group-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: #333;
-}
-
-.param-group .param-item {
-  width: 100%;
+.param-controls-placeholder {
+  width: 40px; /* Space for future icons */
+  flex-shrink: 0;
 }
 </style>
