@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import BaseCard from '@/components/ui/BaseCard.vue'
 import { ref } from 'vue'
-import * as Papa from 'papaparse'
 import type { EisDataPoint } from '@/types/eis'
 import { parseEisCsv } from '@/utils/csvParser'
 
@@ -75,7 +74,7 @@ const generatePlots = () => {
 .data-panel {
   display: flex;
   flex-direction: column;
-  gap: 15px; 
+  gap: 15px;
   align-items: flex-start;
 }
 
