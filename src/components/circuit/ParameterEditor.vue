@@ -7,12 +7,14 @@
 // When the user changes a value this component emits a 'change' event instead of
 // modifying the node directly, keeping the data-flow unidirectional.
 
+import { ref } from 'vue'
 import type { CircuitNode, ElementType } from '@/components/circuit/CircuitNode'
 
 defineProps<{ nodes: CircuitNode[] }>()
 
 const emit = defineEmits<{
-  change: [node: CircuitNode, param: 'value' | 'value2', value: number]
+  change: [node: CircuitNode, param: 'value' | 'value2', value: number],
+  rename: [node: CircuitNode, newId: string]
 }>()
 
 // Units shown next to each element label in the parameter list
@@ -31,6 +33,24 @@ const UNITS2: Partial<Record<ElementType, string>> = {
   CPE: 'n',
   Wo: 'τ  (s)',
   Ws: 'τ  (s)',
+}
+
+const editingId = ref<string | null>(null)
+const tempId = ref('')
+
+function startRename(node: CircuitNode) {
+  editingId.value = node.id
+  tempId.value = node.id
+}
+
+function finishRename(node: CircuitNode) {
+  if (editingId.value === node.id) {
+    const trimmed = tempId.value.trim()
+    if (trimmed && trimmed !== node.id) {
+      emit('rename', node, trimmed)
+    }
+    editingId.value = null
+  }
 }
 
 function onInput(node: CircuitNode, param: 'value' | 'value2', raw: string) {
@@ -53,7 +73,17 @@ function fmt(v: number | undefined): string {
       <!-- Row for the first parameter -->
       <div class="param-row">
         <div class="param-info">
-          <span class="param-id">{{ node.id }}</span>
+          <div class="param-id-wrap" :title="node.id">
+            <input
+              v-if="editingId === node.id"
+              v-model="tempId"
+              class="param-id-input"
+              @blur="finishRename(node)"
+              @keyup.enter="finishRename(node)"
+              v-focus
+            />
+            <span v-else class="param-id" @click="startRename(node)">{{ node.id }}</span>
+          </div>
           <span class="param-unit-label">{{ UNITS[node.type as ElementType] ?? '' }}</span>
         </div>
         <div class="param-input-container">
@@ -89,6 +119,13 @@ function fmt(v: number | undefined): string {
   </div>
 </template>
 
+<script lang="ts">
+// Custom directive to focus the input when it appears
+const vFocus = {
+  mounted: (el: HTMLElement) => el.focus()
+}
+</script>
+
 <style scoped>
 .param-list {
   display: flex;
@@ -123,17 +160,43 @@ function fmt(v: number | undefined): string {
   flex-shrink: 0;
 }
 
+.param-id-wrap {
+  width: 45px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
 .param-id {
+  display: block;
   font-size: 12px;
   font-weight: 700;
   color: #333;
-  width: 35px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px dashed transparent;
+  transition: border-color 0.2s;
+}
+
+.param-id:hover {
+  border-bottom-color: #aaa;
+}
+
+.param-id-input {
+  width: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid #007bff;
+  border-radius: 2px;
+  padding: 0 2px;
+  outline: none;
 }
 
 .param-id-hidden {
   font-size: 12px;
   color: transparent;
-  width: 35px;
+  width: 45px;
   user-select: none;
 }
 

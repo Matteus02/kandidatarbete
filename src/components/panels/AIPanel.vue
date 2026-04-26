@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
-import type { EisDataPoint } from '@/types/eis'
+import type { EisDataPoint, LocalStore } from '@/types/eis'
 import type { InferenceRequest, InferenceResponse } from '@/ai/workerProtocol'
 import InferenceWorker from '@/workers/eisInference.worker.ts?worker'
 
 const props = defineProps<{ 
   eisData: EisDataPoint[]
-  localStore: any // Using any for simplicity in this refactor, but it matches the store interface
+  localStore: LocalStore
 }>()
 const emit = defineEmits<{ (e: 'apply-circuit', circuit: string): void }>()
 

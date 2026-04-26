@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CircuitNode } from '@/components/circuit/CircuitNode'
+import { CircuitNode, NODE_WIDTH, NODE_HEIGHT, HORIZONTAL_SPACING, PARALLEL_SPACING } from '@/components/circuit/CircuitNode'
 import ResistorSymbol from './symbols/ResistorSymbol.vue'
 import CapacitorSymbol from './symbols/CapacitorSymbol.vue'
 import CpeSymbol from './symbols/CpeSymbol.vue'
@@ -18,9 +18,9 @@ const props = defineProps<{
 
 const getVerticalOffset = computed(() => {
   if (!props.node) return 0;
-  const upperH = props.node.upperBranch?.countHeight() || nodeHeight / 2;
-  const lowerH = props.node.lowerBranch?.countHeight() || nodeHeight / 2;
-  return Math.max(upperH, lowerH) / 2 + parallelHeight;
+  const upperH = props.node.upperBranch?.countMaxHeight() || NODE_HEIGHT;
+  const lowerH = props.node.lowerBranch?.countMaxHeight() || NODE_HEIGHT;
+  return Math.max(upperH, lowerH) / 2 + PARALLEL_SPACING;
 });
 
 const handleNodeDrop = inject<(target: CircuitNode, type: string, action: 'before' | 'replace' | 'after') => void>('handleNodeDrop')
@@ -55,11 +55,6 @@ const handleRemove = () => {
         deleteNode(props.node);
     }
 };
-
-const nodeWidth = 60;
-const nodeHeight = 38;
-const parallelHeight = 21;
-const horizontalSpacing = 30;
 </script>
 
 <template>
@@ -130,53 +125,55 @@ const horizontalSpacing = 30;
 
             <g class="branchContainer">
                 <template v-if="node.upperBranch">
-                    <template v-if="(node.upperBranch?.countMaxLength() ?? nodeWidth - 1) < (node.lowerBranch?.countMaxLength() ?? nodeWidth - 1)">
-                        <CircuitRenderer :node="node.upperBranch" :x="(node.lowerBranch?.countMaxLength() ?? nodeWidth - 1)/2-node.upperBranch.countMaxLength()/2 + horizontalSpacing" :y="-getVerticalOffset" />
-                        <line x1="0" :y1="-getVerticalOffset" :x2="(node.lowerBranch?.countMaxLength() ?? nodeWidth - 1)/2-node.upperBranch.countMaxLength()/2 + horizontalSpacing" :y2="-getVerticalOffset" stroke="#333" stroke-width="2" />
-                        <line :x1="(node.lowerBranch?.countMaxLength() ?? nodeWidth - 1)/2+node.upperBranch.countMaxLength()/2 + horizontalSpacing" :y1="-getVerticalOffset" :x2="node.countLength()" :y2="-getVerticalOffset" stroke="#333" stroke-width="2" />
+                    <template v-if="(node.upperBranch?.countMaxLength() ?? NODE_WIDTH - 1) < (node.lowerBranch?.countMaxLength() ?? NODE_WIDTH - 1)">
+                        <CircuitRenderer :node="node.upperBranch" :x="(node.lowerBranch?.countMaxLength() ?? NODE_WIDTH - 1)/2-node.upperBranch.countMaxLength()/2 + HORIZONTAL_SPACING" :y="-getVerticalOffset" />
+                        <line x1="0" :y1="-getVerticalOffset" :x2="(node.lowerBranch?.countMaxLength() ?? NODE_WIDTH - 1)/2-node.upperBranch.countMaxLength()/2 + HORIZONTAL_SPACING" :y2="-getVerticalOffset" stroke="#333" stroke-width="2" />
+                        <line :x1="(node.lowerBranch?.countMaxLength() ?? NODE_WIDTH - 1)/2+node.upperBranch.countMaxLength()/2 + HORIZONTAL_SPACING" :y1="-getVerticalOffset" :x2="node.countLength()" :y2="-getVerticalOffset" stroke="#333" stroke-width="2" />
                     </template>
                     <template v-else>
-                        <CircuitRenderer :node="node.upperBranch" :x="horizontalSpacing" :y="-getVerticalOffset" />
-                        <line x1="0" :y1="-getVerticalOffset" :x2="horizontalSpacing" :y2="-getVerticalOffset" stroke="#333" stroke-width="2" />
-                        <line :x1="node.upperBranch.countMaxLength() + horizontalSpacing" :y1="-getVerticalOffset" :x2="node.countLength()" :y2="-getVerticalOffset" stroke="#333" stroke-width="2" />
+                        <CircuitRenderer :node="node.upperBranch" :x="HORIZONTAL_SPACING" :y="-getVerticalOffset" />
+                        <line x1="0" :y1="-getVerticalOffset" :x2="HORIZONTAL_SPACING" :y2="-getVerticalOffset" stroke="#333" stroke-width="2" />
+                        <line :x1="node.upperBranch.countMaxLength() + HORIZONTAL_SPACING" :y1="-getVerticalOffset" :x2="node.countLength()" :y2="-getVerticalOffset" stroke="#333" stroke-width="2" />
                     </template>
                 </template>
                 <template v-else>
                     <line x1="0" :y1="-getVerticalOffset" :x2="node.countLength()" :y2="-getVerticalOffset" stroke="#333" stroke-width="2" />
-                    <rect v-show="isDragging" :x="node.countLength()/2 - 28" :y="-getVerticalOffset - 16" width="56" height="32" rx="5"
-                          :fill="emptyBranchHover === 'upper' ? 'rgba(59,130,246,0.18)' : 'rgba(59,130,246,0.06)'"
-                          :stroke="emptyBranchHover === 'upper' ? '#3b82f6' : '#aac4f0'"
-                          stroke-width="1.5" stroke-dasharray="5,3" cursor="pointer"
-                          @dragover.prevent @dragenter.prevent="emptyBranchHover = 'upper'"
-                          @dragleave="emptyBranchHover = null" @drop.stop.prevent="onEmptyDrop($event, 'upper')" />
-                    <text v-show="isDragging" :x="node.countLength()/2" :y="-getVerticalOffset + 5" text-anchor="middle" font-size="10"
-                          :fill="emptyBranchHover === 'upper' ? '#3b82f6' : '#aac4f0'" pointer-events="none">drop here</text>
+                    <g v-show="isDragging">
+                        <rect :x="node.countLength()/2 - 15" :y="-getVerticalOffset - 10" width="30" height="20" rx="3"
+                              :fill="emptyBranchHover === 'upper' ? 'rgba(59,130,246,0.12)' : 'rgba(0,0,0,0.03)'"
+                              :stroke="emptyBranchHover === 'upper' ? '#3b82f6' : '#ccc'"
+                              stroke-width="1" stroke-dasharray="3,2" pointer-events="none" />
+                        <rect :x="node.countLength()/2 - 20" :y="-getVerticalOffset - 20" width="40" height="40" fill="transparent" cursor="pointer"
+                              @dragover.prevent @dragenter.prevent="emptyBranchHover = 'upper'"
+                              @dragleave="emptyBranchHover = null" @drop.stop.prevent="onEmptyDrop($event, 'upper')" />
+                    </g>
                 </template>
             </g>
 
             <g class="branchContainer">
                 <template v-if="node.lowerBranch">
-                    <template v-if="(node.upperBranch?.countMaxLength() ?? nodeWidth - 1) > (node.lowerBranch?.countMaxLength() ?? nodeWidth - 1)">
-                        <CircuitRenderer :node="node.lowerBranch" :x="(node.upperBranch?.countMaxLength() ?? nodeWidth - 1)/2-node.lowerBranch.countMaxLength()/2 + horizontalSpacing" :y="getVerticalOffset" />
-                        <line x1="0" :y1="getVerticalOffset" :x2="(node.upperBranch?.countMaxLength() ?? nodeWidth - 1)/2-node.lowerBranch.countMaxLength()/2 + horizontalSpacing" :y2="getVerticalOffset" stroke="#333" stroke-width="2" />
-                        <line :x1="(node.upperBranch?.countMaxLength() ?? nodeWidth - 1)/2+node.lowerBranch.countMaxLength()/2 + horizontalSpacing" :y1="getVerticalOffset" :x2="node.countLength()" :y2="getVerticalOffset" stroke="#333" stroke-width="2" />
+                    <template v-if="(node.upperBranch?.countMaxLength() ?? NODE_WIDTH - 1) > (node.lowerBranch?.countMaxLength() ?? NODE_WIDTH - 1)">
+                        <CircuitRenderer :node="node.lowerBranch" :x="(node.upperBranch?.countMaxLength() ?? NODE_WIDTH - 1)/2-node.lowerBranch.countMaxLength()/2 + HORIZONTAL_SPACING" :y="getVerticalOffset" />
+                        <line x1="0" :y1="getVerticalOffset" :x2="(node.upperBranch?.countMaxLength() ?? NODE_WIDTH - 1)/2-node.lowerBranch.countMaxLength()/2 + HORIZONTAL_SPACING" :y2="getVerticalOffset" stroke="#333" stroke-width="2" />
+                        <line :x1="(node.upperBranch?.countMaxLength() ?? NODE_WIDTH - 1)/2+node.lowerBranch.countMaxLength()/2 + HORIZONTAL_SPACING" :y1="getVerticalOffset" :x2="node.countLength()" :y2="getVerticalOffset" stroke="#333" stroke-width="2" />
                     </template>
                     <template v-else>
-                        <CircuitRenderer :node="node.lowerBranch" :x="horizontalSpacing" :y="getVerticalOffset" />
-                        <line x1="0" :y1="getVerticalOffset" :x2="horizontalSpacing" :y2="getVerticalOffset" stroke="#333" stroke-width="2" />
-                        <line :x1="node.lowerBranch.countMaxLength() + horizontalSpacing" :y1="getVerticalOffset" :x2="node.countLength()" :y2="getVerticalOffset" stroke="#333" stroke-width="2" />
+                        <CircuitRenderer :node="node.lowerBranch" :x="HORIZONTAL_SPACING" :y="getVerticalOffset" />
+                        <line x1="0" :y1="getVerticalOffset" :x2="HORIZONTAL_SPACING" :y2="getVerticalOffset" stroke="#333" stroke-width="2" />
+                        <line :x1="node.lowerBranch.countMaxLength() + HORIZONTAL_SPACING" :y1="getVerticalOffset" :x2="node.countLength()" :y2="getVerticalOffset" stroke="#333" stroke-width="2" />
                     </template>
                 </template>
                 <template v-else>
                     <line x1="0" :y1="getVerticalOffset" :x2="node.countLength()" :y2="getVerticalOffset" stroke="#333" stroke-width="2" />
-                    <rect v-show="isDragging" :x="node.countLength()/2 - 28" :y="getVerticalOffset - 16" width="56" height="32" rx="5"
-                          :fill="emptyBranchHover === 'lower' ? 'rgba(59,130,246,0.18)' : 'rgba(59,130,246,0.06)'"
-                          :stroke="emptyBranchHover === 'lower' ? '#3b82f6' : '#aac4f0'"
-                          stroke-width="1.5" stroke-dasharray="5,3" cursor="pointer"
-                          @dragover.prevent @dragenter.prevent="emptyBranchHover = 'lower'"
-                          @dragleave="emptyBranchHover = null" @drop.stop.prevent="onEmptyDrop($event, 'lower')" />
-                    <text v-show="isDragging" :x="node.countLength()/2" :y="getVerticalOffset + 5" text-anchor="middle" font-size="10"
-                          :fill="emptyBranchHover === 'lower' ? '#3b82f6' : '#aac4f0'" pointer-events="none">drop here</text>
+                    <g v-show="isDragging">
+                        <rect :x="node.countLength()/2 - 15" :y="getVerticalOffset - 10" width="30" height="20" rx="3"
+                              :fill="emptyBranchHover === 'lower' ? 'rgba(59,130,246,0.12)' : 'rgba(0,0,0,0.03)'"
+                              :stroke="emptyBranchHover === 'lower' ? '#3b82f6' : '#ccc'"
+                              stroke-width="1" stroke-dasharray="3,2" pointer-events="none" />
+                        <rect :x="node.countLength()/2 - 20" :y="getVerticalOffset - 20" width="40" height="40" fill="transparent" cursor="pointer"
+                              @dragover.prevent @dragenter.prevent="emptyBranchHover = 'lower'"
+                              @dragleave="emptyBranchHover = null" @drop.stop.prevent="onEmptyDrop($event, 'lower')" />
+                    </g>
                 </template>
             </g>
         </g>
@@ -198,10 +195,10 @@ const horizontalSpacing = 30;
         <template v-if="node.next && node.next.type !== 'end'">
             <line
               :x1="node.countLength()" y1="0"
-              :x2="node.countLength() + horizontalSpacing" y2="0"
+              :x2="node.countLength() + HORIZONTAL_SPACING" y2="0"
               stroke="#333" stroke-width="2"
             />
-            <CircuitRenderer :node="node.next" :x="node.countLength() + horizontalSpacing" :y="0" />
+            <CircuitRenderer :node="node.next" :x="node.countLength() + HORIZONTAL_SPACING" :y="0" />
         </template>
     </g>
 </template>

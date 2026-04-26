@@ -1,8 +1,8 @@
 export type ElementType = 'R' | 'C' | 'CPE' | 'W' | 'Wo' | 'Ws' | 'L' | 'parallel' | 'end' | 'empty';
-const nodeHeight = 10;
-const horizontalSpacing = 30;
-const nodeWidth = 60;
-const parallelSpacing = 20;
+export const NODE_HEIGHT = 38;
+export const HORIZONTAL_SPACING = 30;
+export const NODE_WIDTH = 60;
+export const PARALLEL_SPACING = 21;
 
 export class CircuitNode {
   public id: string;
@@ -74,11 +74,11 @@ export class CircuitNode {
         const upperLength = this.upperBranch?.countMaxLength();
         const lowerLength = this.lowerBranch?.countMaxLength();
         if (upperLength === 0 && lowerLength === 0) {
-            return nodeWidth;
+            return NODE_WIDTH;
         }
-        return Math.max(upperLength || nodeWidth, lowerLength || nodeWidth) + horizontalSpacing*2;
+        return Math.max(upperLength || NODE_WIDTH, lowerLength || NODE_WIDTH) + HORIZONTAL_SPACING*2;
     }
-    return nodeWidth;
+    return NODE_WIDTH;
   }
 
   countMaxLength(): number {
@@ -87,22 +87,22 @@ export class CircuitNode {
     if (!this.next || this.next.type === 'end') {
       return currentLength;
     }
-    return currentLength + horizontalSpacing + this.next.countMaxLength();
+    return currentLength + HORIZONTAL_SPACING + this.next.countMaxLength();
   }
 
   countHeight(): number {
     if (this.type === 'parallel') {
-        const upperHeight = this.upperBranch?.countMaxHeight() || nodeHeight;
-        const lowerHeight = this.lowerBranch?.countMaxHeight() || nodeHeight;
-        return parallelSpacing  + upperHeight/2 + lowerHeight/2;
+        const upperHeight = this.upperBranch?.countMaxHeight() || NODE_HEIGHT;
+        const lowerHeight = this.lowerBranch?.countMaxHeight() || NODE_HEIGHT;
+        return Math.max(upperHeight, lowerHeight) + 2 * PARALLEL_SPACING;
     }
     else {
-        return nodeHeight;
+        return NODE_HEIGHT;
     }
   }
 
   countMaxHeight(): number {
-    return Math.max(this.countHeight(), this.next?.countMaxHeight() || nodeHeight);
+    return Math.max(this.countHeight(), this.next?.countMaxHeight() || NODE_HEIGHT);
   }
 
   removeNode() {

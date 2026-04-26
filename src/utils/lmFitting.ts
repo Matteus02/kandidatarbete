@@ -36,7 +36,7 @@ export interface FitCircuitResult {
 // The imaginary half is negated to match EIS convention (-Im(Z) > 0 for capacitive circuits).
 export function flattenComplex(zArray: Complex[]): number[] {
   const n = zArray.length
-  const flat = new Array<number>(2 * n)
+  const flat = Array.from<number>({ length: 2 * n })
   for (let i = 0; i < n; i++) {
     const z = zArray[i]!  // i < n, always defined
     flat[i] = z.re

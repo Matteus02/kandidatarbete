@@ -67,6 +67,12 @@ const localStore = {
   loadCsv,
 }
 
+const props = defineProps<{
+  id: string
+}>()
+
+const sidebarTargetId = computed(() => `sidebar-parameters-target-${props.id}`)
+
 const emit = defineEmits<{
   (e: 'update-name', name: string): void
 }>()
@@ -110,6 +116,7 @@ const handleUpdateModel = (data: ModelData | null) => {
           v-if="state.dataPoints.length > 0"
           :eis-data="state.dataPoints" 
           :local-store="localStore"
+          :sidebar-target-id="sidebarTargetId"
           @update:model="handleUpdateModel"
         />
       </main>
@@ -121,7 +128,7 @@ const handleUpdateModel = (data: ModelData | null) => {
           :local-store="localStore"
           @apply-circuit="handleApplyCircuit" 
         />
-        <div id="sidebar-parameters-target"></div>
+        <div :id="sidebarTargetId"></div>
       </aside>
     </div>
   </div>

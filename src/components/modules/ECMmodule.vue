@@ -17,7 +17,7 @@ import BaseCard        from '@/components/ui/BaseCard.vue'
 import CircuitRenderer from '@/components/circuit/CircuitRenderer.vue'
 import CircuitPalette  from '@/components/circuit/CircuitPalette.vue'
 import ParameterEditor from '@/components/circuit/ParameterEditor.vue'
-import type { EisDataPoint } from '@/types/eis'
+import type { EisDataPoint, LocalStore } from '@/types/eis'
 import type { CircuitNode }  from '@/components/circuit/CircuitNode'
 import { useCircuitTree } from '@/composables/useCircuitTree'
 import { useLMFitting }   from '@/composables/useLMFitting'
@@ -26,7 +26,8 @@ import { buildTreeFromString } from '@/utils/circuitParser'
 
 const props = defineProps<{ 
   eisData: EisDataPoint[]
-  localStore: any
+  localStore: LocalStore
+  sidebarTargetId: string
 }>()
 
 const emit = defineEmits<{
@@ -52,7 +53,8 @@ const isDragging = ref(false)
 provide('isDragging', isDragging)
 
 const editableNodes = computed(() => {
-  renderVersion.value
+  // Access renderVersion to ensure re-computation when tree structure changes
+  void renderVersion.value
   return collectNodes(rootNode.value)
 })
 
@@ -71,6 +73,11 @@ watch([modelData, showModel], ([newModel, shouldShow]) => {
 function onParamChange(node: CircuitNode, param: 'value' | 'value2', value: number) {
   node[param] = value
   // Increment renderVersion to trigger useCircuitModel re-calculation
+  renderVersion.value++
+}
+
+function onRename(node: CircuitNode, newId: string) {
+  node.id = newId
   renderVersion.value++
 }
 
@@ -123,18 +130,14 @@ watch(
     <!-- Drag-and-drop element palette + usage instructions -->
     <CircuitPalette />
 
-    <p v-if="props.eisData.length === 0" class="no-data-hint">
-      Upload EIS data first to enable fitting and plotting.
-    </p>
-
     <!-- Teleport the parameters and fit buttons to the sidebar -->
-    <Teleport to="#sidebar-parameters-target" v-if="isMounted">
+    <Teleport :to="'#' + sidebarTargetId" v-if="isMounted">
       <BaseCard title="Circuit Parameters">
         <div class="section-label" style="margin-top: 0;">
           Parameters
           <span class="hint">(edit manually, or use the buttons below)</span>
         </div>
-        <ParameterEditor :nodes="editableNodes" @change="onParamChange" />
+        <ParameterEditor :nodes="editableNodes" @change="onParamChange" @rename="onRename" />
 
         <!-- Action buttons -->
         <div class="sidebar-actions">

@@ -16,7 +16,7 @@ export function useCircuitModel(rootNode: Ref<CircuitNode>, frequencies: Ref<num
 
     // We reference trigger.value if it exists to ensure the computed re-runs
     // when the trigger (renderVersion) is incremented.
-    if (trigger) trigger.value
+    if (trigger) void trigger.value
 
     const re: number[] = []
     const im: number[] = []

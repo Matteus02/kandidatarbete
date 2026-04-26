@@ -48,8 +48,8 @@ const drawPlots = () => {
     yaxis: 'y2' as const,
   }
 
-  const tracesNyquist = [measNyquist]
-  const tracesBode = [measBodeMag, measBodePhase]
+  const tracesNyquist: Plotly.Data[] = [measNyquist]
+  const tracesBode: Plotly.Data[] = [measBodeMag, measBodePhase]
 
   // --- Model Traces ---
   if (props.modelTrace) {

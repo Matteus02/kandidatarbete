@@ -10,7 +10,7 @@ ort.env.wasm.wasmPaths = '/ort/'
 // ─── Signal processing helpers ────────────────────────────────────────────────
 
 function linspace(start: number, stop: number, num: number): number[] {
-  const arr = new Array<number>(num)
+  const arr = Array.from<number>({ length: num })
   const step = (stop - start) / (num - 1)
   for (let i = 0; i < num; i++) arr[i] = start + i * step
   return arr
@@ -29,7 +29,7 @@ function unwrapPhase(angles: number[]): number[] {
 // Mirrors np.gradient with explicit x coordinates (central diffs, one-sided at edges)
 function gradient(y: number[], x: number[]): number[] {
   const n = y.length
-  const g = new Array<number>(n)
+  const g = Array.from<number>({ length: n })
   for (let i = 0; i < n; i++) {
     if (i === 0) {
       g[i] = (y[1]! - y[0]!) / (x[1]! - x[0]!)
@@ -64,8 +64,6 @@ function interp1d(xKnown: number[], yKnown: number[], xQuery: number[]): number[
     return 0.0
   })
 }
-
-// ─── Tensor construction ──────────────────────────────────────────────────────
 
 // ─── Tensor construction ──────────────────────────────────────────────────────
 
