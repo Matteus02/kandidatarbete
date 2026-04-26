@@ -28,7 +28,7 @@
 //     high-impedance ranges. Results are written back to the reactive tree
 //     on the main thread after the worker responds.
 
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
 import type { CircuitNode } from '@/components/circuit/CircuitNode'
 import type { EisDataPoint } from '@/types/eis'
@@ -36,13 +36,6 @@ import FittingWorker from '@/workers/lmFitting.worker.ts?worker'
 import type { FittingRequest, FittingResponse, SerializedNode } from '@/ai/fittingWorkerProtocol'
 
 type CollectFn = (node: CircuitNode | null) => CircuitNode[]
-
-// Module-level worker instance — reused across fits, lazily created on first use.
-let fittingWorker: Worker | null = null
-function getFittingWorker(): Worker {
-  if (!fittingWorker) fittingWorker = new FittingWorker()
-  return fittingWorker
-}
 
 // Serialise the full circuit tree to a flat JSON-safe array.
 // Includes ALL node types (parallel, end) because zOfChain traverses them.
@@ -78,6 +71,20 @@ export function useLMFitting(
   onRedraw: () => void,
 ) {
   const isFitting = ref(false)
+
+  // Component-scoped worker instance.
+  let fittingWorker: Worker | null = null
+  function getFittingWorker(): Worker {
+    if (!fittingWorker) fittingWorker = new FittingWorker()
+    return fittingWorker
+  }
+
+  onUnmounted(() => {
+    if (fittingWorker) {
+      fittingWorker.terminate()
+      fittingWorker = null
+    }
+  })
 
   // ── Heuristic Initial Value Estimation ──────────────────────────────────
 

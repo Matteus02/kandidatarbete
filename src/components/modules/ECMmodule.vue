@@ -20,14 +20,15 @@ import CircuitPalette  from '@/components/circuit/CircuitPalette.vue'
 import ParameterEditor from '@/components/circuit/ParameterEditor.vue'
 import type { EisDataPoint } from '@/types/eis'
 import type { CircuitNode }  from '@/components/circuit/CircuitNode'
-import { useEisStore }       from '@/stores/eis'
 import { useCircuitTree } from '@/composables/useCircuitTree'
 import { useLMFitting }   from '@/composables/useLMFitting'
 import { zOfChain }       from '@/utils/circuitImpedance'
 import { buildTreeFromString } from '@/utils/circuitParser'
 
-const props = defineProps<{ eisData: EisDataPoint[] }>()
-const store = useEisStore()
+const props = defineProps<{ 
+  eisData: EisDataPoint[]
+  localStore: any
+}>()
 
 // ── Circuit tree ─────────────────────────────────────────────────────────────
 // rootNode    — the root CircuitNode (reactive; changing it triggers re-render)
@@ -69,9 +70,11 @@ function onParamChange(node: CircuitNode, param: 'value' | 'value2', value: numb
 // ── Plots (Nyquist + Bode) ───────────────────────────────────────────────────
 
 const showModel = ref(false)
+const nyquistRef = ref<HTMLElement | null>(null)
+const bodeRef = ref<HTMLElement | null>(null)
 
 function drawPlots() {
-  if (props.eisData.length === 0) return
+  if (props.eisData.length === 0 || !nyquistRef.value || !bodeRef.value) return
 
   // ── Measurement traces ───────────────────────────────────────────────────
   const measNyquist = {
@@ -127,26 +130,25 @@ function drawPlots() {
     const modelRe: number[] = []
     const modelIm: number[] = []
     const modelMag: number[] = []
+    const modelPhase: number[] = []
     for (const d of props.eisData) {
       const omega = 2 * Math.PI * d['freq/Hz']
       const z     = zOfChain(rootNode.value, omega)
       modelRe.push(z.re)
       modelIm.push(-z.im)
       modelMag.push(Math.sqrt(z.re * z.re + z.im * z.im))
+      modelPhase.push((Math.atan2(z.im, z.re) * 180) / Math.PI)
     }
-    const modelPhase = modelRe.map((re, i) =>
-      (Math.atan2(modelIm[i]!, re) * 180) / Math.PI,
-    )
 
     const modelNyq = { x: modelRe, y: modelIm, mode: 'lines' as const, line: { color: '#e74c3c', width: 2 }, type: 'scatter' as const, name: 'Model' }
     const modelBodeMag = { x: freq, y: modelMag, mode: 'lines' as const, line: { color: '#e74c3c', width: 2 }, type: 'scatter' as const, name: 'Model', xaxis: 'x' as const, yaxis: 'y' as const }
     const modelBodePhase = { x: freq, y: modelPhase, mode: 'lines' as const, line: { color: '#e74c3c', width: 2 }, type: 'scatter' as const, name: 'Model', showlegend: false, xaxis: 'x' as const, yaxis: 'y2' as const }
 
-    Plotly.newPlot('ecm-nyquist', [measNyquist, modelNyq], nyqLayout)
-    Plotly.newPlot('ecm-bode',   [measBodeMag, measBodePhase, modelBodeMag, modelBodePhase], bodeLayout)
+    Plotly.newPlot(nyquistRef.value, [measNyquist, modelNyq], nyqLayout)
+    Plotly.newPlot(bodeRef.value,   [measBodeMag, measBodePhase, modelBodeMag, modelBodePhase], bodeLayout)
   } else {
-    Plotly.newPlot('ecm-nyquist', [measNyquist], nyqLayout)
-    Plotly.newPlot('ecm-bode',   [measBodeMag, measBodePhase], bodeLayout)
+    Plotly.newPlot(nyquistRef.value, [measNyquist], nyqLayout)
+    Plotly.newPlot(bodeRef.value,   [measBodeMag, measBodePhase], bodeLayout)
   }
 }
 
@@ -174,7 +176,7 @@ const aiAppliedCircuit = ref<string | null>(null)
 // When the tab becomes active the component mounts fresh, so the watcher would
 // otherwise miss a store value that was already set before the mount.
 watch(
-  () => store.aiSuggestedCircuit,
+  () => props.localStore.aiSuggestedCircuit,
   (circuitStr) => {
     if (!circuitStr) return
     rootNode.value     = buildTreeFromString(circuitStr)
@@ -194,8 +196,8 @@ watch(() => props.eisData, drawPlots)
 
     <!-- Nyquist and Bode plots -->
     <div class="plot-row">
-      <div id="ecm-nyquist" class="plot" />
-      <div id="ecm-bode"    class="plot" />
+      <div ref="nyquistRef" class="plot" />
+      <div ref="bodeRef"    class="plot" />
     </div>
 
     <!-- Banner shown when a circuit was loaded from the AI tab -->

@@ -1,102 +1,80 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import BaseTabs from '@/components/ui/BaseTabs.vue'
-import BaseTabPanel from '@/components/ui/BaseTabPanel.vue'
-import type { TabItem } from '@/components/ui/tabsContext'
-import DataPanel from '@/components/panels/DataPanel.vue'
-import PlotPanel from '@/components/panels/PlotPanel.vue'
-import AIPanel from '@/components/panels/AIPanel.vue'
-import FitPanel from '@/components/panels/FitPanel.vue'
-import ExportPanel from '@/components/panels/ExportPanel.vue'
-import ECMmodule from '@/components/modules/ECMmodule.vue'
-import { useEisStore } from '@/stores/eis'
-import type { EisDataPoint } from '@/types/eis'
+import AppHeader from '@/components/layout/AppHeader.vue'
+import SampleTabBar from '@/components/layout/SampleTabBar.vue'
+import SampleWorkspace from '@/components/SampleWorkspace.vue'
 
-const tabs = [
-  { id: 'data',   label: 'Data' },
-  { id: 'plot',   label: 'Plot' },
-  { id: 'ai',     label: 'AI' },
-  { id: 'ecm',    label: 'ECM' },
-  { id: 'fit',    label: 'Fit' },
-  { id: 'export', label: 'Export' },
-] as const satisfies readonly TabItem[]
-
-type TabId = (typeof tabs)[number]['id']
-
-const activeTab      = ref<TabId>('data')
-const globalfileName = ref('')
-const globalEISData  = ref<EisDataPoint[]>([])
-
-const handleAnalysisComplete = (data: EisDataPoint[], name: string) => {
-  globalfileName.value = name
-  globalEISData.value = data
-  activeTab.value = 'plot'
+interface SampleTab {
+  id: string
+  name: string
 }
 
-const handleModelCircuit = () => {
-  activeTab.value = 'ai'
+const samples = ref<SampleTab[]>([
+  { id: 'sample-1', name: 'Sample 1' }
+])
+
+const activeSampleId = ref('sample-1')
+
+const addSample = () => {
+  const newId = `sample-${Date.now()}`
+  samples.value.push({
+    id: newId,
+    name: `Sample ${samples.value.length + 1}`
+  })
+  activeSampleId.value = newId
 }
 
-const eisStore = useEisStore()
+const removeSample = (id: string) => {
+  if (samples.value.length === 1) return // Keep at least one tab
+  
+  const index = samples.value.findIndex(s => s.id === id)
+  samples.value.splice(index, 1)
+  
+  if (activeSampleId.value === id) {
+    activeSampleId.value = samples.value[Math.max(0, index - 1)]!.id
+  }
+}
 
-const handleApplyCircuit = (circuitString: string) => {
-  eisStore.setAiSuggestedCircuit(circuitString)
-  activeTab.value = 'ecm'
+const selectSample = (id: string) => {
+  activeSampleId.value = id
+}
+
+const updateSampleName = (id: string, name: string) => {
+  const sample = samples.value.find(s => s.id === id)
+  if (sample) sample.name = name
 }
 </script>
 
 <template>
   <div class="app">
-    <header class="app__header">
-      <h1 class="app__title">Electrochemical Impedance Spectroscopy Analyzer</h1>
-      <p class="app__subtitle">A automated tool for finding ECM and fitting circuits</p>
-    </header>
+    <AppHeader />
+
+    <SampleTabBar 
+      :samples="samples"
+      :active-sample-id="activeSampleId"
+      @add="addSample"
+      @remove="removeSample"
+      @select="selectSample"
+    />
 
     <main class="app__main">
-      <BaseTabs :tabs="tabs" v-model="activeTab">
-        <BaseTabPanel tab-id="data">
-          <DataPanel
-            :initial-file-name="globalfileName"
-            :initial-data="globalEISData"
-            @analysis-complete="handleAnalysisComplete"
-          />
-        </BaseTabPanel>
-        <BaseTabPanel tab-id="plot">
-          <PlotPanel :eis-data="globalEISData" @model-circuit="handleModelCircuit" />
-        </BaseTabPanel>
-        <BaseTabPanel tab-id="ai">
-          <AIPanel :eis-data="globalEISData" @apply-circuit="handleApplyCircuit" />
-        </BaseTabPanel>
-        <BaseTabPanel tab-id="ecm">
-          <ECMmodule :eis-data="globalEISData" />
-        </BaseTabPanel>
-        <BaseTabPanel tab-id="fit"><FitPanel /></BaseTabPanel>
-        <BaseTabPanel tab-id="export"><ExportPanel /></BaseTabPanel>
-      </BaseTabs>
+      <div 
+        v-for="sample in samples" 
+        :key="sample.id"
+        v-show="activeSampleId === sample.id"
+      >
+        <SampleWorkspace @update-name="(name) => updateSampleName(sample.id, name)" />
+      </div>
     </main>
   </div>
 </template>
 
 <style scoped>
 .app {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: var(--space-5) var(--space-4);
-}
-
-.app__header {
-  margin-bottom: var(--space-5);
-}
-
-.app__title {
-  font-size: 24px;
-  font-weight: 600;
-}
-
-.app__subtitle {
-  margin: var(--space-1) 0 0;
-  color: var(--color-text-muted);
-  font-size: 14px;
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  margin: 0;
 }
 
 .app__main {

@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import type { EisDataPoint } from '@/types/eis'
 import type { InferenceRequest, InferenceResponse } from '@/ai/workerProtocol'
-import { useEisStore } from '@/stores/eis'
 import InferenceWorker from '@/workers/eisInference.worker.ts?worker'
 
-const props = defineProps<{ eisData: EisDataPoint[] }>()
+const props = defineProps<{ 
+  eisData: EisDataPoint[]
+  localStore: any // Using any for simplicity in this refactor, but it matches the store interface
+}>()
 const emit = defineEmits<{ (e: 'apply-circuit', circuit: string): void }>()
 
-const store = useEisStore()
 const isLoading = ref(false)
 const errorMessage = ref<string | null>(null)
-const predictions = computed(() => store.aiSuggestions)
+const predictions = computed(() => props.localStore.aiSuggestions)
 
 let worker: Worker | null = null
 
@@ -25,7 +26,7 @@ function getWorker(): Worker {
         errorMessage.value = event.data.message
         return
       }
-      store.setAiSuggestions(event.data.predictions)
+      props.localStore.setAiSuggestions(event.data.predictions)
     }
     worker.onerror = (e) => {
       isLoading.value = false
@@ -34,6 +35,13 @@ function getWorker(): Worker {
   }
   return worker
 }
+
+onUnmounted(() => {
+  if (worker) {
+    worker.terminate()
+    worker = null
+  }
+})
 
 function runDetection(): void {
   if (props.eisData.length === 0) {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BaseCard from '@/components/ui/BaseCard.vue'
-import { watch, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import Plotly from 'plotly.js-dist-min'
 import type { EisDataPoint } from '@/types/eis'
 
@@ -8,8 +8,11 @@ const props = defineProps<{
   eisData: EisDataPoint[]
 }>()
 
+const nyquistRef = ref<HTMLElement | null>(null)
+const bodeRef = ref<HTMLElement | null>(null)
+
 const drawPlots = () => {
-  if (props.eisData.length === 0) return
+  if (props.eisData.length === 0 || !nyquistRef.value || !bodeRef.value) return
 
   const zReal = props.eisData.map((d) => d['Re(Z)/Ohm'])
       const zImag = props.eisData.map((d) => d['-Im(Z)/Ohm'])
@@ -85,8 +88,8 @@ const drawPlots = () => {
         showlegend: true,
       }
 
-      Plotly.newPlot('nyquist-plot', [nyquistTrace], nyquistLayout)
-      Plotly.newPlot('bode-plot', [bodeMagTrace, bodePhaseTrace], bodeLayout)
+      Plotly.newPlot(nyquistRef.value, [nyquistTrace], nyquistLayout)
+      Plotly.newPlot(bodeRef.value, [bodeMagTrace, bodePhaseTrace], bodeLayout)
 }
 const emit = defineEmits(['model-circuit'])
 
@@ -100,9 +103,9 @@ watch(() => props.eisData, drawPlots)
 
 <template>
   <BaseCard title="Plot">
-    <div id="nyquist-plot"></div>
-      <div id="bode-plot"></div>
-      <button class="model-circuit-button" @click="modelCircuit">Model Circuit</button>
+    <div ref="nyquistRef"></div>
+    <div ref="bodeRef"></div>
+    <button class="model-circuit-button" @click="modelCircuit">Model Circuit</button>
   </BaseCard>
 </template>
 
