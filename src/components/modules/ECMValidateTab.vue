@@ -1,26 +1,37 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 import type { CircuitNode } from '@/components/circuit/CircuitNode'
 import type { EisDataPoint } from '@/types/eis'
 import type { ModelData } from '@/composables/useCircuitModel'
 import ResidualPlot from '@/components/plots/ResidualPlot.vue'
+import { calculateChiSquared } from '@/utils/chiSquared'
+import { calculateResiduals } from '@/utils/residuals'
 
 const props = defineProps<{
   rootNode: CircuitNode
   eisData: EisDataPoint[]
   modelData: ModelData | null
-  validationState: {
-    chiSquared: number | null
-    residuals: { re: number[]; im: number[] }
-  }
 }>()
 
-const emit = defineEmits<{
-  (e: 'evaluate'): void
-}>()
+const validationState = reactive({
+  chiSquared: null as number | null,
+  residuals: { re: [] as number[], im: [] as number[] }
+})
+
+function evaluateModel() {
+  if (!props.modelData || props.eisData.length === 0) return
+
+  const measRe = props.eisData.map(d => d['Re(Z)/Ohm'])
+  const measIm = props.eisData.map(d => -d['-Im(Z)/Ohm'])
+  const modRe = props.modelData.re
+  const modIm = props.modelData.im.map(v => -v)
+
+  validationState.chiSquared = calculateChiSquared(measRe, measIm, modRe, modIm)
+  validationState.residuals = calculateResiduals(measRe, measIm, modRe, modIm)
+}
 
 const fitQualityLabel = computed(() => {
-  const val = props.validationState.chiSquared
+  const val = validationState.chiSquared
   if (val === null) return ''
   if (val < 1e-4) return 'Excellent'
   if (val < 1e-3) return 'Good'
@@ -29,7 +40,7 @@ const fitQualityLabel = computed(() => {
 })
 
 const fitQualityClass = computed(() => {
-  const val = props.validationState.chiSquared
+  const val = validationState.chiSquared
   if (val === null) return ''
   if (val < 1e-3) return 'quality-good'
   if (val < 1e-2) return 'quality-fair'
@@ -56,7 +67,7 @@ const fitQualityClass = computed(() => {
           <button 
             class="action-btn" 
             :disabled="!modelData || eisData.length === 0"
-            @click="emit('evaluate')"
+            @click="evaluateModel"
           >
             Evaluate Current Fit
           </button>

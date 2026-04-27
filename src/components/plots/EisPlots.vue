@@ -101,7 +101,7 @@ const drawPlots = () => {
       scaleanchor: 'x' as const,
       scaleratio: 1,
     },
-    height: 400,
+    height: 550,
     margin: { t: 40, r: 20, b: 50, l: 60 },
     showlegend: true,
   }
@@ -126,18 +126,34 @@ const drawPlots = () => {
       tickfont: { color: '#28a745' },
       zeroline: false,
     },
-    height: 500,
+    height: 550,
     margin: { t: 50, r: 70, b: 50, l: 70 },
     showlegend: true,
     hovermode: 'x unified' as const,
   }
 
-  Plotly.react(nyquistRef.value, tracesNyquist, nyqLayout)
-  Plotly.react(bodeRef.value, tracesBode, bodeLayout)
+  const config = { responsive: true, displayModeBar: false }
+  Plotly.react(nyquistRef.value, tracesNyquist, nyqLayout, config)
+  Plotly.react(bodeRef.value, tracesBode, bodeLayout, config)
 }
 
 onMounted(drawPlots)
 watch(() => [props.measurements, props.modelTrace], drawPlots, { deep: true })
+
+function downloadPlotImage(type: 'nyquist' | 'bode') {
+  const target = type === 'nyquist' ? nyquistRef.value : bodeRef.value
+  if (!target) return
+  Plotly.downloadImage(target, {
+    format: 'png',
+    filename: `spectra_${type}_plot`,
+    width: 800,
+    height: 600
+  })
+}
+
+defineExpose({
+  downloadPlotImage
+})
 </script>
 
 <template>
@@ -151,20 +167,22 @@ watch(() => [props.measurements, props.modelTrace], drawPlots, { deep: true })
 
 <style scoped>
 .plots-container {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 20px;
-  justify-content: center;
+  width: 100%;
 }
 
 .plot-box {
-  flex: 1;
-  min-width: 400px;
+  width: 100%;
+  min-width: 0;
+  height: 550px;
+  overflow: hidden;
 }
 
 @media (max-width: 900px) {
-  .plot-box {
-    min-width: 100%;
+  .plots-container {
+    grid-template-columns: 1fr;
   }
 }
 </style>

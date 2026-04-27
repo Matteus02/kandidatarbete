@@ -66,10 +66,15 @@ function runDetection(): void {
   }
   getWorker().postMessage(request)
 }
+
+function handleApply(circuit: string): void {
+  emit('apply-circuit', circuit)
+  showSuggestions.value = false
+}
 </script>
 
 <template>
-  <BaseCard title="AI Circuit Detection">
+  <BaseCard title="AI Circuit Detection" compact>
     <div v-if="props.eisData.length === 0" class="ai-empty">
       <p>Load EIS data in the Data section before running detection.</p>
     </div>
@@ -96,12 +101,12 @@ function runDetection(): void {
 
       <p v-if="errorMessage" class="ai-error" role="alert">{{ errorMessage }}</p>
 
-      <ul v-if="predictions.length > 0" v-show="showSuggestions" class="ai-results">
+      <ul v-if="predictions.length > 0 && showSuggestions" class="ai-results">
         <li v-for="p in predictions" :key="p.circuit" class="ai-result-item">
           <div class="ai-result-header">
             <code class="ai-circuit-label">{{ p.circuit }}</code>
             <span class="ai-confidence-pct">{{ (p.confidence * 100).toFixed(1) }}%</span>
-            <button class="ai-btn-apply" @click="emit('apply-circuit', p.circuit)">Apply</button>
+            <button class="ai-btn-apply" @click="handleApply(p.circuit)">Apply</button>
           </div>
           <div class="ai-bar-track">
             <div class="ai-bar-fill" :style="{ width: (p.confidence * 100).toFixed(2) + '%' }" />
@@ -115,8 +120,8 @@ function runDetection(): void {
 <style scoped>
 .ai-empty {
   color: var(--color-text-muted, #888);
-  font-size: 14px;
-  padding: 16px 0;
+  font-size: 13px;
+  padding: 4px 0;
 }
 
 .ai-controls {
@@ -124,7 +129,6 @@ function runDetection(): void {
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 16px;
 }
 
 .ai-btn-primary {
@@ -132,8 +136,8 @@ function runDetection(): void {
   color: white;
   border: none;
   border-radius: 4px;
-  padding: 10px 20px;
-  font-size: 15px;
+  padding: 8px 16px;
+  font-size: 14px;
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -151,7 +155,7 @@ function runDetection(): void {
   background: none;
   border: none;
   color: #007bff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   padding: 4px 8px;
@@ -187,7 +191,7 @@ function runDetection(): void {
 .ai-error {
   color: #c0392b;
   font-size: 14px;
-  margin: 8px 0;
+  margin: 16px 0 8px;
   padding: 8px 12px;
   background: #fdf2f2;
   border: 1px solid #f5c6cb;
@@ -197,7 +201,7 @@ function runDetection(): void {
 .ai-results {
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 16px 0 0;
   display: flex;
   flex-direction: column;
   gap: 12px;

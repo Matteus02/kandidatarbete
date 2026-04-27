@@ -67,10 +67,12 @@ export function buildTreeFromString(circuitString: string): CircuitNode {
       const lowerStr = comma >= 0 ? inner.slice(comma + 1) : ''
 
       const pNode = new CircuitNode(`p${parallelIndex++}`, 'parallel', 0)
+      pNode.applyDefaultLimits()
 
       const uInfo = parseElementInfo(upperStr)
       if (uInfo) {
         const u = new CircuitNode(upperStr.trim(), uInfo.type, uInfo.value, uInfo.value2 ?? 1.0)
+        u.applyDefaultLimits()
         u.setEarlier(pNode)
         pNode.upperBranch = u
       }
@@ -78,6 +80,7 @@ export function buildTreeFromString(circuitString: string): CircuitNode {
       const lInfo = lowerStr ? parseElementInfo(lowerStr) : null
       if (lInfo) {
         const l = new CircuitNode(lowerStr.trim(), lInfo.type, lInfo.value, lInfo.value2 ?? 1.0)
+        l.applyDefaultLimits()
         l.setEarlier(pNode)
         pNode.lowerBranch = l
       }
@@ -86,7 +89,11 @@ export function buildTreeFromString(circuitString: string): CircuitNode {
     } else {
       // ── Series element ─────────────────────────────────────────────────
       const info = parseElementInfo(e)
-      if (info) nodes.push(new CircuitNode(e, info.type, info.value, info.value2 ?? 1.0))
+      if (info) {
+        const node = new CircuitNode(e, info.type, info.value, info.value2 ?? 1.0)
+        node.applyDefaultLimits()
+        nodes.push(node)
+      }
     }
   }
 
@@ -96,5 +103,33 @@ export function buildTreeFromString(circuitString: string): CircuitNode {
     nodes[i + 1]!.setEarlier(nodes[i]!)
   }
 
-  return nodes[0] ?? new CircuitNode('R0', 'R', 100)
+  const finalRoot = nodes[0] ?? new CircuitNode('R0', 'R', 100)
+  finalRoot.applyDefaultLimits()
+  return finalRoot
+}
+
+/**
+ * Converts a CircuitNode tree back into its string representation.
+ * Handles nested parallel blocks and series chains.
+ */
+export function stringifyTree(root: CircuitNode | null): string {
+  if (!root) return ''
+  const parts: string[] = []
+  let current: CircuitNode | null = root
+
+  while (current) {
+    if (current.type === 'end') break
+
+    if (current.type === 'parallel') {
+      const upper = stringifyTree(current.upperBranch)
+      const lower = stringifyTree(current.lowerBranch)
+      parts.push(`p(${upper},${lower})`)
+    } else if (current.type !== 'empty') {
+      parts.push(current.id)
+    }
+
+    current = current.next
+  }
+
+  return parts.join('-')
 }
