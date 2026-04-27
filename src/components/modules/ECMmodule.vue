@@ -187,7 +187,7 @@ watch(
             </button>
             <button class="btn btn--outline" :disabled="eisData.length === 0"
               @click="estimateInitialValues">
-              Guess initial values
+              Guess Initial Values
             </button>
           </div>
           <button class="btn btn--primary" :disabled="isFitting || eisData.length === 0"
