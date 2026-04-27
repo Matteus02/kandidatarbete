@@ -7,6 +7,7 @@ import { performKKTest } from '@/utils/kramersKronig'
 const props = defineProps<{
   dataPoints: EisDataPoint[]
   localStore: LocalStore
+  isFiltered?: boolean
 }>()
 
 const stats = computed(() => {
@@ -15,8 +16,16 @@ const stats = computed(() => {
   const freqs = props.dataPoints.map(d => d['freq/Hz'])
   const magnitudes = props.dataPoints.map(d => d['|Z|/Ohm'])
 
+  const subset = props.dataPoints.filter(d => {
+    const f = d['freq/Hz']
+    const min = props.localStore.minFreq ?? -Infinity
+    const max = props.localStore.maxFreq ?? Infinity
+    return f >= min && f <= max
+  })
+
   return {
     count: props.dataPoints.length,
+    subsetCount: subset.length,
     minFreq: Math.min(...freqs),
     maxFreq: Math.max(...freqs),
     minZ: Math.min(...magnitudes),
@@ -66,9 +75,17 @@ function getStatusClass(isConsistent: boolean) {
       </div>
 
       <div v-else class="stats-list">
+        <div v-if="isFiltered" class="filter-warning">
+          <span>Filter active: Calculations use subset</span>
+        </div>
+
         <div class="stat-item">
           <span class="label">Data Points:</span>
           <span class="value">{{ stats.count }}</span>
+        </div>
+        <div v-if="isFiltered" class="stat-item subset-row">
+          <span class="label">└ Subset:</span>
+          <span class="value value--subset">{{ stats.subsetCount }}</span>
         </div>
 
         <div class="stat-divider">Frequency Range</div>
@@ -138,6 +155,21 @@ function getStatusClass(isConsistent: boolean) {
   gap: 8px;
 }
 
+.filter-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 4px;
+}
+
+
 .stat-item {
   display: flex;
   justify-content: space-between;
@@ -153,6 +185,15 @@ function getStatusClass(isConsistent: boolean) {
   font-family: monospace;
   font-weight: 600;
   color: #333;
+}
+
+.subset-row {
+  margin-top: -4px;
+  padding-left: 8px;
+}
+
+.value--subset {
+  color: #007bff;
 }
 
 .stat-divider {

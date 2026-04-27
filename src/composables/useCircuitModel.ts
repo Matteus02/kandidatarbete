@@ -31,7 +31,7 @@ export function useCircuitModel(rootNode: Ref<CircuitNode>, frequencies: Ref<num
       re.push(z.re)
       im.push(-z.im) // In EIS we often plot -Im(Z)
       mag.push(Math.sqrt(z.re * z.re + z.im * z.im))
-      phase.push((Math.atan2(z.im, z.re) * 180) / Math.PI)
+      phase.push((Math.atan2(-z.im, z.re) * 180) / Math.PI)
     }
 
     return { re, im, mag, phase, freq }

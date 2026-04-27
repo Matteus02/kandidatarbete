@@ -30,6 +30,8 @@ export interface LocalStore {
   readonly isLoading: boolean
   readonly error: string | null
   readonly kkResult: KKResult | null
+  readonly minFreq: number | null
+  readonly maxFreq: number | null
   setAiSuggestedCircuit: (circuit: string | null) => void
   setAiSuggestions: (suggestions: PredictionItem[]) => void
   loadCsv: (text: string, name: string) => void
