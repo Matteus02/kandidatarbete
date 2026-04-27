@@ -81,7 +81,7 @@ export function exportModelTraceToCSV(modelData: ModelData, circuitString: strin
  */
 export async function exportSvgAsPng(svgElement: SVGGraphicsElement, filename: string) {
   // Use viewBox or attributes if getBBox() returns zero (common for hidden elements)
-  let bbox = svgElement.getBBox()
+  const bbox = svgElement.getBBox()
   let width = bbox.width
   let height = bbox.height
 

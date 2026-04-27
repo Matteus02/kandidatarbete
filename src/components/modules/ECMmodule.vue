@@ -109,6 +109,13 @@ const { isFitting, estimateInitialValues, fitModel } = useLMFitting(
 
 const aiAppliedCircuit = ref<string | null>(null)
 
+function onSelectCircuit(circuitStr: string) {
+  rootNode.value = buildTreeFromString(circuitStr)
+  aiAppliedCircuit.value = null // Clear AI banner if manually selecting a common circuit
+  resetCounters()
+  renderVersion.value++
+}
+
 watch(
   () => props.localStore.aiSuggestedCircuit,
   (circuitStr) => {
@@ -117,6 +124,10 @@ watch(
     aiAppliedCircuit.value = circuitStr
     resetCounters()
     renderVersion.value++
+    
+    // Reset the suggested circuit in the store so it can be re-applied
+    // even if the user clicks the same one again after manual changes.
+    props.localStore.setAiSuggestedCircuit(null)
   },
   { immediate: true },
 )
@@ -132,6 +143,7 @@ watch(
           :root-node="rootNode"
           :render-version="renderVersion"
           :ai-applied-circuit="aiAppliedCircuit"
+          @select-circuit="onSelectCircuit"
         />
         <ECMValidateTab
           v-show="activeTab === 'validate'"

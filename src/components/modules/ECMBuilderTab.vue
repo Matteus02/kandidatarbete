@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { CircuitNode } from '@/components/circuit/CircuitNode'
 import CircuitRenderer from '@/components/circuit/CircuitRenderer.vue'
 import CircuitPalette  from '@/components/circuit/CircuitPalette.vue'
+import CommonCircuitsDropdown from '@/components/circuit/CommonCircuitsDropdown.vue'
+import { stringifyTree } from '@/utils/circuitParser'
 
 const props = defineProps<{
   rootNode: CircuitNode
@@ -10,7 +12,16 @@ const props = defineProps<{
   aiAppliedCircuit: string | null
 }>()
 
+defineEmits<{
+  (e: 'select-circuit', circuit: string): void
+}>()
+
 const svgRef = ref<SVGGraphicsElement | null>(null)
+
+const currentCircuitString = computed(() => {
+  void props.renderVersion
+  return stringifyTree(props.rootNode)
+})
 
 defineExpose({
   svgRef
@@ -23,6 +34,8 @@ defineExpose({
     <div v-if="aiAppliedCircuit" class="ai-banner">
       AI suggestion loaded: <code>{{ aiAppliedCircuit }}</code>
     </div>
+
+    <CommonCircuitsDropdown :current-circuit="currentCircuitString" @select="$emit('select-circuit', $event)" />
 
     <!-- SVG circuit canvas (key forces full re-render on every tree change) -->
     <div class="section-label">Circuit</div>
