@@ -181,12 +181,13 @@ watch(
         <div class="sidebar-actions">
           <div class="action-row-secondary">
             <button class="btn btn--outline" :disabled="eisData.length === 0"
-              @click="showModel = true">
-              {{ showModel ? 'Update Plot' : 'Plot Circuit' }}
+              @click="showModel ? showModel=false : showModel=true"
+              >
+              {{ showModel ? 'Disable ECM-Plot' : 'Enable ECM-plot' }}
             </button>
             <button class="btn btn--outline" :disabled="eisData.length === 0"
               @click="estimateInitialValues">
-              Estimate Parameters
+              Guess initial values
             </button>
           </div>
           <button class="btn btn--primary" :disabled="isFitting || eisData.length === 0"
@@ -223,6 +224,7 @@ watch(
 
 .action-row-secondary {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
