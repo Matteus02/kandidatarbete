@@ -111,7 +111,7 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
         'Re(Z)/Ohm': re,
         '-Im(Z)/Ohm': im,
         '|Z|/Ohm': Math.sqrt(re*re + im*im),
-        'Phase(Z)/deg': Math.atan2(-im, re) * (180 / Math.PI)
+        'Phase(Z)/deg': Math.atan2(im, re) * (180 / Math.PI)
       })
     }
     return processed
@@ -134,7 +134,7 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
       }
 
       if (isNaN(mag)) mag = Math.sqrt(re * re + im * im)
-      if (isNaN(phase)) phase = Math.atan2(-im, re) * (180 / Math.PI)
+      if (isNaN(phase)) phase = Math.atan2(im, re) * (180 / Math.PI)
 
       return {
         'freq/Hz': freq,

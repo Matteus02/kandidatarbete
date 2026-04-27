@@ -22,6 +22,8 @@ const state = reactive({
   kkResult: null as KKResult | null,
   isLoading: false,
   error: null as string | null,
+  minFreq: null as number | null,
+  maxFreq: null as number | null,
 })
 
 const modelTrace = ref<ModelData | null>(null)
@@ -31,10 +33,24 @@ const frequencies = computed(() => state.dataPoints.map((p) => p['freq/Hz']))
 const zReal = computed(() => state.dataPoints.map((p) => p['Re(Z)/Ohm']))
 const zImag = computed(() => state.dataPoints.map((p) => p['-Im(Z)/Ohm']))
 
+const filteredDataPoints = computed(() => {
+  if (state.minFreq === null && state.maxFreq === null) return state.dataPoints
+  return state.dataPoints.filter((p) => {
+    const f = p['freq/Hz']
+    const min = state.minFreq ?? -Infinity
+    const max = state.maxFreq ?? Infinity
+    return f >= min && f <= max
+  })
+})
+
+const isFiltered = computed(() => state.minFreq !== null || state.maxFreq !== null)
+
 // --- Actions ---
 function loadCsv(text: string, name: string): void {
   state.rawCsvText = text
   state.fileName = name
+  state.minFreq = null
+  state.maxFreq = null
   try {
     state.dataPoints = parseEisCsv(text)
     state.kkResult = null // Reset validation on new file
@@ -56,6 +72,11 @@ function setKkResult(result: KKResult | null): void {
   state.kkResult = result
 }
 
+function setFreqRange(min: number | null, max: number | null): void {
+  state.minFreq = min
+  state.maxFreq = max
+}
+
 // Mock of the store interface for compatibility with existing components
 const localStore = {
   get rawCsvText() { return state.rawCsvText },
@@ -69,10 +90,13 @@ const localStore = {
   get isLoading() { return state.isLoading },
   get error() { return state.error },
   get kkResult() { return state.kkResult },
+  get minFreq() { return state.minFreq },
+  get maxFreq() { return state.maxFreq },
   setAiSuggestedCircuit,
   setAiSuggestions,
   loadCsv,
   setKkResult,
+  setFreqRange,
 }
 
 const props = defineProps<{
@@ -88,7 +112,14 @@ const emit = defineEmits<{
 const handleAnalysisComplete = (data: EisDataPoint[], name: string) => {
   state.dataPoints = data
   state.fileName = name
+  state.minFreq = null
+  state.maxFreq = null
   emit('update-name', name)
+}
+
+const handleUpdateFreqRange = (min: number | null, max: number | null) => {
+  state.minFreq = min
+  state.maxFreq = max
 }
 
 const handleApplyCircuit = (circuitString: string) => {
@@ -111,9 +142,12 @@ const eisPlotsRef = ref<{ downloadPlotImage: (type: 'nyquist' | 'bode') => void 
           :id="props.id"
           :initial-file-name="state.fileName || ''"
           :initial-data="state.dataPoints"
+          :min-freq="state.minFreq"
+          :max-freq="state.maxFreq"
           @analysis-complete="handleAnalysisComplete"
+          @update:freq-range="handleUpdateFreqRange"
         />
-        <DataInfoPanel :data-points="state.dataPoints" :local-store="localStore" />
+        <DataInfoPanel :data-points="state.dataPoints" :local-store="localStore" :is-filtered="isFiltered" />
       </aside>
 
       <!-- Main Content Column -->
@@ -122,12 +156,14 @@ const eisPlotsRef = ref<{ downloadPlotImage: (type: 'nyquist' | 'bode') => void 
           ref="eisPlotsRef"
           :measurements="state.dataPoints" 
           :model-trace="modelTrace"
+          :min-freq="state.minFreq"
+          :max-freq="state.maxFreq"
         />
 
         <ECMmodule 
           v-if="state.dataPoints.length > 0"
           :id="props.id"
-          :eis-data="state.dataPoints" 
+          :eis-data="filteredDataPoints" 
           :local-store="localStore"
           :sidebar-target-id="sidebarTargetId"
           :eis-plots-ref="eisPlotsRef"
@@ -138,7 +174,7 @@ const eisPlotsRef = ref<{ downloadPlotImage: (type: 'nyquist' | 'bode') => void 
       <!-- Right Sidebar: AI & Controls -->
       <aside class="workspace-sidebar workspace-sidebar--right">
         <AIPanel 
-          :eis-data="state.dataPoints" 
+          :eis-data="filteredDataPoints" 
           :local-store="localStore"
           @apply-circuit="handleApplyCircuit" 
         />
