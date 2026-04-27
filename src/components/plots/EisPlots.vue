@@ -111,7 +111,6 @@ const drawPlots = () => {
       y: im,
       customdata: modelFreq,
       hovertemplate: 
-        '<b>%{name}</b><br>' +
         'Z\': %{x:.2f} Ω<br>' +
         '-Z\'\': %{y:.2f} Ω<br>' +
         'Freq: %{customdata:.2e} Hz<extra></extra>',
