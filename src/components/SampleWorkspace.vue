@@ -98,6 +98,8 @@ const handleApplyCircuit = (circuitString: string) => {
 const handleUpdateModel = (data: ModelData | null) => {
   modelTrace.value = data
 }
+
+const eisPlotsRef = ref<{ downloadPlotImage: (type: 'nyquist' | 'bode') => void } | null>(null)
 </script>
 
 <template>
@@ -117,15 +119,18 @@ const handleUpdateModel = (data: ModelData | null) => {
       <!-- Main Content Column -->
       <main class="workspace-main">
         <EisPlots 
+          ref="eisPlotsRef"
           :measurements="state.dataPoints" 
           :model-trace="modelTrace"
         />
 
         <ECMmodule 
           v-if="state.dataPoints.length > 0"
+          :id="props.id"
           :eis-data="state.dataPoints" 
           :local-store="localStore"
           :sidebar-target-id="sidebarTargetId"
+          :eis-plots-ref="eisPlotsRef"
           @update:model="handleUpdateModel"
         />
       </main>

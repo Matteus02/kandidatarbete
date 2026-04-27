@@ -66,6 +66,11 @@ function runDetection(): void {
   }
   getWorker().postMessage(request)
 }
+
+function handleApply(circuit: string): void {
+  emit('apply-circuit', circuit)
+  showSuggestions.value = false
+}
 </script>
 
 <template>
@@ -101,7 +106,7 @@ function runDetection(): void {
           <div class="ai-result-header">
             <code class="ai-circuit-label">{{ p.circuit }}</code>
             <span class="ai-confidence-pct">{{ (p.confidence * 100).toFixed(1) }}%</span>
-            <button class="ai-btn-apply" @click="emit('apply-circuit', p.circuit)">Apply</button>
+            <button class="ai-btn-apply" @click="handleApply(p.circuit)">Apply</button>
           </div>
           <div class="ai-bar-track">
             <div class="ai-bar-fill" :style="{ width: (p.confidence * 100).toFixed(2) + '%' }" />

@@ -107,3 +107,29 @@ export function buildTreeFromString(circuitString: string): CircuitNode {
   finalRoot.applyDefaultLimits()
   return finalRoot
 }
+
+/**
+ * Converts a CircuitNode tree back into its string representation.
+ * Handles nested parallel blocks and series chains.
+ */
+export function stringifyTree(root: CircuitNode | null): string {
+  if (!root) return ''
+  const parts: string[] = []
+  let current: CircuitNode | null = root
+
+  while (current) {
+    if (current.type === 'end') break
+
+    if (current.type === 'parallel') {
+      const upper = stringifyTree(current.upperBranch)
+      const lower = stringifyTree(current.lowerBranch)
+      parts.push(`p(${upper},${lower})`)
+    } else if (current.type !== 'empty') {
+      parts.push(current.id)
+    }
+
+    current = current.next
+  }
+
+  return parts.join('-')
+}

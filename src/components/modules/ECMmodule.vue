@@ -2,31 +2,33 @@
 // ECM Builder — Interactive equivalent circuit modelling for EIS data.
 // Refactored to use a tabbed interface (Builder | Validate).
 
-import { ref, computed, watch, provide, onMounted, reactive } from 'vue'
+import { ref, computed, watch, provide, onMounted } from 'vue'
 import BaseCard        from '@/components/ui/BaseCard.vue'
 import BaseTabs        from '@/components/ui/BaseTabs.vue'
 import ParameterEditor from '@/components/circuit/ParameterEditor.vue'
 import ECMBuilderTab   from './ECMBuilderTab.vue'
 import ECMValidateTab  from './ECMValidateTab.vue'
+import ECMExportTab    from './ECMExportTab.vue'
 import type { EisDataPoint, LocalStore } from '@/types/eis'
 import type { CircuitNode }  from '@/components/circuit/CircuitNode'
 import { useCircuitTree } from '@/composables/useCircuitTree'
 import { useLMFitting }   from '@/composables/useLMFitting'
 import { useCircuitModel, type ModelData } from '@/composables/useCircuitModel'
 import { buildTreeFromString } from '@/utils/circuitParser'
-import { calculateChiSquared } from '@/utils/chiSquared'
-import { calculateResiduals } from '@/utils/residuals'
 
 const props = defineProps<{
+  id: string
   eisData: EisDataPoint[]
   localStore: LocalStore
   sidebarTargetId: string
+  eisPlotsRef?: { downloadPlotImage: (type: 'nyquist' | 'bode') => void } | null
 }>()
 
 const emit = defineEmits<{
   (e: 'update:model', data: ModelData | null): void
 }>()
 
+const builderTabRef = ref<InstanceType<typeof ECMBuilderTab> | null>(null)
 const isMounted = ref(false)
 onMounted(() => {
   isMounted.value = true
@@ -36,7 +38,8 @@ onMounted(() => {
 const activeTab = ref('builder')
 const tabs = [
   { id: 'builder', label: 'Circuit Builder' },
-  { id: 'validate', label: 'Validate Model' }
+  { id: 'validate', label: 'Validate Model' },
+  { id: 'export', label: 'Export' }
 ] as const
 
 // ── Circuit tree logic (Parent-owned) ────────────────────────────────────────
@@ -65,24 +68,6 @@ const { modelData } = useCircuitModel(rootNode, frequencies, renderVersion)
 watch([modelData, showModel], ([newModel, shouldShow]) => {
   emit('update:model', shouldShow ? newModel : null)
 }, { immediate: true })
-
-// ── Validation State (Hoisted) ───────────────────────────────────────────────
-const validationState = reactive({
-  chiSquared: null as number | null,
-  residuals: { re: [] as number[], im: [] as number[] }
-})
-
-function evaluateModel() {
-  if (!modelData.value || props.eisData.length === 0) return
-
-  const measRe = props.eisData.map(d => d['Re(Z)/Ohm'])
-  const measIm = props.eisData.map(d => -d['-Im(Z)/Ohm'])
-  const modRe = modelData.value.re
-  const modIm = modelData.value.im.map(v => -v)
-
-  validationState.chiSquared = calculateChiSquared(measRe, measIm, modRe, modIm)
-  validationState.residuals = calculateResiduals(measRe, measIm, modRe, modIm)
-}
 
 // ── Parameter changes ────────────────────────────────────────────────────────
 
@@ -142,18 +127,26 @@ watch(
     <BaseTabs v-model="activeTab" :tabs="tabs">
       <div class="ecm-tab-content">
         <ECMBuilderTab
-          v-if="activeTab === 'builder'"
+          ref="builderTabRef"
+          v-show="activeTab === 'builder'"
           :root-node="rootNode"
           :render-version="renderVersion"
           :ai-applied-circuit="aiAppliedCircuit"
         />
         <ECMValidateTab
-          v-else-if="activeTab === 'validate'"
+          v-show="activeTab === 'validate'"
           :root-node="rootNode"
           :eis-data="eisData"
           :model-data="modelData"
-          :validation-state="validationState"
-          @evaluate="evaluateModel"
+        />
+        <ECMExportTab
+          v-show="activeTab === 'export'"
+          :id="props.id"
+          :root-node="rootNode"
+          :editable-nodes="editableNodes"
+          :model-data="modelData"
+          :eis-plots-ref="props.eisPlotsRef"
+          :builder-tab-ref="builderTabRef"
         />
       </div>
     </BaseTabs>
