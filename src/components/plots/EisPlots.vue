@@ -240,7 +240,6 @@ defineExpose({
     <!-- Copy notification toast -->
     <Transition name="fade">
       <div v-if="showCopyToast" class="copy-toast">
-        <span class="toast-icon">📋</span>
         Copied frequency: <strong>{{ copiedFreq }} Hz</strong>
       </div>
     </Transition>
@@ -278,10 +277,6 @@ defineExpose({
   gap: 10px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   z-index: 1000;
-}
-
-.toast-icon {
-  font-size: 18px;
 }
 
 .fade-enter-active, .fade-leave-active {
