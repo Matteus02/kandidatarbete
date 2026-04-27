@@ -17,19 +17,26 @@ const drawPlots = () => {
   if (props.measurements.length === 0 || !nyquistRef.value || !bodeRef.value) return
 
   // --- Measurement Traces ---
+  const freq = props.measurements.map(d => d['freq/Hz'])
+  
   const measNyquist = {
     x: props.measurements.map(d => d['Re(Z)/Ohm']),
     y: props.measurements.map(d => d['-Im(Z)/Ohm']),
+    customdata: freq,
+    hovertemplate: 
+      'Z\': %{x:.2f} Ω<br>' +
+      '-Z\'\': %{y:.2f} Ω<br>' +
+      'Freq: %{customdata:.2e} Hz<extra></extra>',
     mode: 'markers' as const,
     marker: { size: 6, color: '#007bff' },
     type: 'scatter' as const,
     name: 'Measurement',
   }
-  const freq = props.measurements.map(d => d['freq/Hz'])
 
   const measBodeMag = {
     x: freq,
     y: props.measurements.map(d => d['|Z|/Ohm']),
+    hovertemplate: 'Freq: %{x:.2e} Hz<br>|Z|: %{y:.2f} Ω<extra></extra>',
     mode: 'markers' as const,
     marker: { size: 5, color: '#007bff' },
     type: 'scatter' as const,
@@ -40,6 +47,7 @@ const drawPlots = () => {
   const measBodePhase = {
     x: freq,
     y: props.measurements.map(d => d['Phase(Z)/deg']),
+    hovertemplate: 'Freq: %{x:.2e} Hz<br>Phase: %{y:.2f}°<extra></extra>',
     mode: 'markers' as const,
     marker: { size: 5, color: '#28a745' },
     type: 'scatter' as const,
@@ -58,6 +66,12 @@ const drawPlots = () => {
     const modelNyq = {
       x: re,
       y: im,
+      customdata: modelFreq,
+      hovertemplate: 
+        '<b>%{name}</b><br>' +
+        'Z\': %{x:.2f} Ω<br>' +
+        '-Z\'\': %{y:.2f} Ω<br>' +
+        'Freq: %{customdata:.2e} Hz<extra></extra>',
       mode: 'lines' as const,
       line: { color: '#e74c3c', width: 2 },
       type: 'scatter' as const,
@@ -67,6 +81,7 @@ const drawPlots = () => {
     const modelBodeMag = {
       x: modelFreq,
       y: mag,
+      hovertemplate: 'Freq: %{x:.2e} Hz<br>|Z|: %{y:.2f} Ω<extra></extra>',
       mode: 'lines' as const,
       line: { color: '#e74c3c', width: 2 },
       type: 'scatter' as const,
@@ -78,6 +93,7 @@ const drawPlots = () => {
     const modelBodePhase = {
       x: modelFreq,
       y: phase,
+      hovertemplate: 'Freq: %{x:.2e} Hz<br>Phase: %{y:.2f}°<extra></extra>',
       mode: 'lines' as const,
       line: { color: '#f39c12', width: 2, dash: 'dash' as const },
       type: 'scatter' as const,
@@ -94,6 +110,11 @@ const drawPlots = () => {
   const nyqLayout = {
     title: { text: 'Nyquist Plot' },
     hovermode: 'closest' as const,
+    hoverlabel: {
+      bgcolor: 'white',
+      bordercolor: '#ccc',
+      font: { color: '#333' }
+    },
     xaxis: { title: { text: "Z' / Ω" }, zeroline: true },
     yaxis: {
       title: { text: "-Z'' / Ω" },
