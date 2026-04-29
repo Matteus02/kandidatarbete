@@ -9,7 +9,7 @@
 // only needs to react to rootNode and renderVersion.
 
 import { ref } from 'vue'
-import { CircuitNode, type ElementType } from '@/components/circuit/CircuitNode'
+import { CircuitNode, type ElementType } from '@/utils/CircuitNode'
 
 // Default first parameter when a new element is dragged onto the canvas.
 const ELEMENT_DEFAULTS: Partial<Record<ElementType, number>> = {

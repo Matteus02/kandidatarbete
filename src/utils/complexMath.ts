@@ -1,6 +1,4 @@
 // Pure complex-number arithmetic.
-// A complex number is { re, im } where re is the real part and im is the imaginary part.
-// All functions are pure (no side effects) and operate only on this type.
 
 export type Complex = { re: number; im: number }
 

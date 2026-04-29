@@ -1,7 +1,7 @@
 // Domain types for EIS analysis.
 // These are intentionally minimal — extend as features are built.
 
-import type { PredictionItem } from '@/ai/workerProtocol'
+import type { PredictionItem } from '@/types/workerProtocol'
 
 export interface EisDataPoint {
   'freq/Hz': number;

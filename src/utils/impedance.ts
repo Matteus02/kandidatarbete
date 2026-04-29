@@ -1,7 +1,4 @@
 // Impedance formulas for each circuit element type.
-// Every function maps physical parameter values + angular frequency ω = 2πf
-// to a complex impedance Z = re + j·im.
-//
 // Complex arithmetic is provided by complexMath.ts.
 
 import { type Complex, add, mul, div, csqrt, ccosh, csinh } from '@/utils/complexMath'
@@ -56,7 +53,7 @@ export function zL(L: number, omega: number): Complex {
 export function zWo(Rw: number, tau: number, omega: number): Complex {
   const jot: Complex = { re: 0, im: omega * tau }
   const sqrtJot = csqrt(jot)
-  
+
   // Asymptotic approximation for large arguments to avoid Infinity/Infinity = NaN
   if (sqrtJot.re > 20) {
     return div({ re: Rw, im: 0 }, sqrtJot)

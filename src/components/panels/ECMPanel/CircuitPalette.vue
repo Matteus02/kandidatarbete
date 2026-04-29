@@ -3,14 +3,14 @@
 // Each item sets its element type via the HTML5 Drag API (dataTransfer)
 // so CircuitRenderer can receive it in its drop handlers.
 
-import ResistorSymbol     from '@/components/circuit/symbols/ResistorSymbol.vue'
-import CapacitorSymbol    from '@/components/circuit/symbols/CapacitorSymbol.vue'
-import CpeSymbol          from '@/components/circuit/symbols/CpeSymbol.vue'
-import WarburgSymbol      from '@/components/circuit/symbols/WarburgSymbol.vue'
-import WarburgOpenSymbol  from '@/components/circuit/symbols/WarburgOpenSymbol.vue'
-import WarburgShortSymbol from '@/components/circuit/symbols/WarburgShortSymbol.vue'
-import InductorSymbol     from '@/components/circuit/symbols/InductorSymbol.vue'
-import ParallellSymbol    from '@/components/circuit/symbols/ParallellSymbol.vue'
+import ResistorSymbol     from './symbols/ResistorSymbol.vue'
+import CapacitorSymbol    from './symbols/CapacitorSymbol.vue'
+import CpeSymbol          from './symbols/CpeSymbol.vue'
+import WarburgSymbol      from './symbols/WarburgSymbol.vue'
+import WarburgOpenSymbol  from './symbols/WarburgOpenSymbol.vue'
+import WarburgShortSymbol from './symbols/WarburgShortSymbol.vue'
+import InductorSymbol     from './symbols/InductorSymbol.vue'
+import ParallellSymbol    from './symbols/ParallellSymbol.vue'
 
 const ITEMS = [
   { type: 'R',        label: 'Resistor'   },

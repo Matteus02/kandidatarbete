@@ -93,20 +93,20 @@ const onFileChange = (event: Event) => {
         <div class="filter-inputs">
           <div class="input-group">
             <label :for="'min-f-' + props.id">Min (Hz)</label>
-            <input 
-              type="text" 
-              :id="'min-f-' + props.id" 
-              v-model="localMinFreq" 
+            <input
+              type="text"
+              :id="'min-f-' + props.id"
+              v-model="localMinFreq"
               @change="handleFreqChange"
               placeholder="Min"
             />
           </div>
           <div class="input-group">
             <label :for="'max-f-' + props.id">Max (Hz)</label>
-            <input 
-              type="text" 
-              :id="'max-f-' + props.id" 
-              v-model="localMaxFreq" 
+            <input
+              type="text"
+              :id="'max-f-' + props.id"
+              v-model="localMaxFreq"
               @change="handleFreqChange"
               placeholder="Max"
             />
@@ -124,6 +124,8 @@ const onFileChange = (event: Event) => {
 .data-panel {
   display: flex;
   flex-direction: column;
+  gap: 15px;
+  align-items: flex-start;
   gap: 12px;
   align-items: stretch;
 }

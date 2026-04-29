@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 
 import * as ort from 'onnxruntime-web'
-import { MODEL_URL, MODEL_EXTERNAL_DATA, KNOWN_CIRCUITS, N_POINTS } from '@/ai/modelConfig'
-import type { InferenceRequest, InferenceResponse, PredictionItem } from '@/ai/workerProtocol'
+import { MODEL_URL, MODEL_EXTERNAL_DATA, KNOWN_CIRCUITS, N_POINTS } from '@/types/modelConfig'
+import type { InferenceRequest, InferenceResponse, PredictionItem } from '@/types/workerProtocol'
 
 // Point to static copies in public/ort/ so Vite doesn't transform the .mjs files
 ort.env.wasm.wasmPaths = '/ort/'

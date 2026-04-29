@@ -2,11 +2,11 @@
 import { ref, reactive, computed } from 'vue'
 import DataPanel from '@/components/panels/DataPanel.vue'
 import DataInfoPanel from '@/components/panels/DataInfoPanel.vue'
-import EisPlots from '@/components/plots/EisPlots.vue'
+import PlotPanel from '@/components/panels/PlotPanel.vue'
 import AIPanel from '@/components/panels/AIPanel.vue'
-import ECMmodule from '@/components/modules/ECMmodule.vue'
+import ECMmodule from '@/components/panels/ECMPanel/ECMPanel.vue'
 import type { EisDataPoint, Circuit, FitResult, KKResult } from '@/types/eis'
-import type { PredictionItem } from '@/ai/workerProtocol'
+import type { PredictionItem } from '@/types/workerProtocol'
 import type { ModelData } from '@/composables/useCircuitModel'
 import { parseEisCsv } from '@/utils/csvParser'
 
@@ -152,7 +152,7 @@ const eisPlotsRef = ref<{ downloadPlotImage: (type: 'nyquist' | 'bode') => void 
 
       <!-- Main Content Column -->
       <main class="workspace-main">
-        <EisPlots 
+        <PlotPanel
           ref="eisPlotsRef"
           :measurements="state.dataPoints" 
           :model-trace="modelTrace"

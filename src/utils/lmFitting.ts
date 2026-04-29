@@ -1,44 +1,34 @@
-// Levenberg-Marquardt parameter fitting engine for EIS equivalent circuit models.
-//
-// Sign convention: zImag is -Im(Z) (EIS convention, positive for capacitive circuits),
-// matching what the Pinia store exposes. flattenComplex negates the imaginary half so
-// the residual is simply y_measured - y_model with no extra sign manipulation in callers.
-//
-// All parameters are optimised in log-space so that values spanning many decades
-// (e.g. R=100 Ω and C=1e-6 F) have equal influence on the optimizer step size.
 
 import { levenbergMarquardt } from 'ml-levenberg-marquardt'
 import { type Complex, abs } from './complexMath'
 
-// A circuit model function: receives linear-space params and angular frequencies (rad/s),
-// returns the complex impedance at each frequency.
+
 export type CircuitModelFn = (params: number[], omegas: number[]) => Complex[]
 
 export interface FitCircuitOptions {
-  frequencies: number[]   // Hz — length n
-  zReal: number[]         // Re(Z) — length n
-  zImag: number[]         // -Im(Z), EIS convention (positive for capacitive) — length n
+  frequencies: number[]
+  zReal: number[]
+  zImag: number[]
   modelFn: CircuitModelFn
-  initialParams: number[] // linear-space starting guesses
-  minValues?: number[]    // linear-space lower bounds (default 1e-20 per param)
-  maxValues?: number[]    // linear-space upper bounds (default 1e20 per param)
+  initialParams: number[]
+  minValues?: number[]
+  maxValues?: number[]
 }
 
 export interface FitCircuitResult {
-  params: number[]      // fitted values, linear space
-  paramErrors: number[] // per-parameter standard errors, linear space
-  fittedZ: Complex[]    // model Z at each frequency using fitted params
-  chiSquared: number    // sum of weighted squared residuals
+  params: number[]
+  paramErrors: number[] 
+  fittedZ: Complex[]
+  chiSquared: number
   iterations: number
 }
 
-// Flatten n complex impedances into [Re_1,...,Re_n, -Im_1,...,-Im_n].
-// The imaginary half is negated to match EIS convention (-Im(Z) > 0 for capacitive circuits).
+
 export function flattenComplex(zArray: Complex[]): number[] {
   const n = zArray.length
   const flat = Array.from<number>({ length: 2 * n })
   for (let i = 0; i < n; i++) {
-    const z = zArray[i]!  // i < n, always defined
+    const z = zArray[i]!
     flat[i] = z.re
     flat[i + n] = -z.im
   }

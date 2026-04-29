@@ -8,7 +8,7 @@
 // modifying the node directly, keeping the data-flow unidirectional.
 
 import { ref } from 'vue'
-import type { CircuitNode, ElementType } from '@/components/circuit/CircuitNode'
+import type { CircuitNode, ElementType } from '@/utils/CircuitNode'
 
 defineProps<{ nodes: CircuitNode[] }>()
 

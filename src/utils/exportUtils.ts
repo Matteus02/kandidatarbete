@@ -1,13 +1,7 @@
-/**
- * Modular utilities for exporting EIS data, parameters, and visualizations.
- */
-
-import type { CircuitNode } from '@/components/circuit/CircuitNode'
+import type { CircuitNode } from '@/utils/CircuitNode'
 import type { ModelData } from '@/composables/useCircuitModel'
 
-/**
- * Triggers a browser download of a text file (CSV, TXT, etc.).
- */
+
 export function downloadFile(filename: string, content: string, mimeType: string = 'text/csv') {
   const blob = new Blob([content], { type: mimeType })
   const url = URL.createObjectURL(blob)
@@ -67,7 +61,7 @@ export function exportModelTraceToCSV(modelData: ModelData, circuitString: strin
     return [
       f,
       modelData.re[i],
-      modelData.im[i], // our store already holds -Im(Z) for plotting
+      modelData.im[i],
       modelData.mag[i],
       modelData.phase[i]
     ].join(',')
@@ -102,33 +96,28 @@ export async function exportSvgAsPng(svgElement: SVGGraphicsElement, filename: s
     }
   }
 
-  // Add padding
   const padding = 40
   const totalWidth = width + padding
   const totalHeight = height + padding
 
-  // Clone SVG to modify it for serialization without affecting UI
   const clonedSvg = svgElement.cloneNode(true) as SVGGraphicsElement
   clonedSvg.setAttribute('width', totalWidth.toString())
   clonedSvg.setAttribute('height', totalHeight.toString())
-  
-  // Recursively inline computed styles from the original to the clone
+
   const inlineStyles = (source: Element, target: Element) => {
     const computed = window.getComputedStyle(source)
     const style = (target as HTMLElement | SVGElement).style
-    
-    // Key properties for circuit diagrams
+
     const props = [
       'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linecap',
       'stroke-linejoin', 'font-family', 'font-size', 'font-weight', 'text-anchor'
     ]
-    
+
     for (const prop of props) {
       const val = computed.getPropertyValue(prop)
       if (val) style.setProperty(prop, val)
     }
 
-    // Process children
     for (let i = 0; i < source.children.length; i++) {
       const sourceChild = source.children[i]
       const targetChild = target.children[i]
@@ -137,19 +126,18 @@ export async function exportSvgAsPng(svgElement: SVGGraphicsElement, filename: s
       }
     }
   }
-  
+
   // Only inline styles if the source is visible (getComputedStyle works best then)
   // If hidden (v-show), computed styles might still work but could be 'none' for some properties.
   inlineStyles(svgElement, clonedSvg)
 
-  // Ensure styles are inline for the serializer
   const svgData = new XMLSerializer().serializeToString(clonedSvg)
-  
+
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  canvas.width = totalWidth * 2 // High DPI
+  canvas.width = totalWidth * 2
   canvas.height = totalHeight * 2
   ctx.scale(2, 2)
   ctx.fillStyle = 'white'
@@ -160,10 +148,9 @@ export async function exportSvgAsPng(svgElement: SVGGraphicsElement, filename: s
   const url = URL.createObjectURL(svgBlob)
 
   img.onload = () => {
-    // Draw with slight offset for padding
     ctx.drawImage(img, padding / 2, padding / 2)
     URL.revokeObjectURL(url)
-    
+
     const pngUrl = canvas.toDataURL('image/png')
     const downloadLink = document.createElement('a')
     downloadLink.href = pngUrl
