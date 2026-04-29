@@ -15,10 +15,9 @@
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
-    "fmin": "^0.0.4",
+    "ml-levenberg-marquardt": "^5.0.1",
     "onnxruntime-web": "^1.20.1",
     "papaparse": "^5.5.3",
-    "pinia": "^3.0.4",
     "plotly.js-dist-min": "^3.5.0",
     "vue": "^3.5.31"
   },

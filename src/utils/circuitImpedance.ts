@@ -10,16 +10,12 @@
 import type { CircuitNode } from '@/components/circuit/CircuitNode'
 import { type Complex, add, parallel, zR, zC, zCPE, zW, zL, zWo, zWs } from '@/utils/impedance'
 
-// The CPE exponent n is fixed here. Changing it to a free parameter would
-// require adding it to the CircuitNode and exposing it in the parameter editor.
-export const CPE_N = 0.85
-
 // Compute Z for a single node at angular frequency ω.
 export function zOfNode(node: CircuitNode, omega: number): Complex {
   switch (node.type) {
     case 'R':   return zR(node.value)
     case 'C':   return zC(node.value, omega)
-    case 'CPE': return zCPE(node.value, CPE_N, omega)
+    case 'CPE': return zCPE(node.value, node.value2, omega)
     case 'W':   return zW(node.value, omega)
     case 'L':   return zL(node.value, omega)
     case 'Wo':  return zWo(node.value, node.value2, omega)

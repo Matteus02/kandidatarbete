@@ -1,13 +1,14 @@
 <script setup lang="ts">
 interface Props {
   title?: string
+  compact?: boolean
 }
 
 defineProps<Props>()
 </script>
 
 <template>
-  <section class="card">
+  <section :class="['card', { 'card--compact': compact }]">
     <header v-if="$slots.header || title" class="card__header">
       <slot name="header">
         <h2 class="card__title">{{ title }}</h2>
@@ -38,14 +39,27 @@ defineProps<Props>()
   border-bottom: 1px solid var(--color-border);
 }
 
+.card--compact .card__header {
+  padding: 8px 12px;
+}
+
 .card__title {
   font-size: 16px;
   font-weight: 600;
 }
 
+.card--compact .card__title {
+  font-size: 14px;
+  padding: 10px 12px;
+}
+
 .card__body {
   padding: var(--space-4);
   flex: 1;
+}
+
+.card--compact .card__body {
+  padding: 10px 12px;
 }
 
 .card__footer {

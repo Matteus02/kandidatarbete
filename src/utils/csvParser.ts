@@ -20,10 +20,12 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
 
   // 3. Find the header row
   let headerIndex = -1
-  const possibleHeaders = ['freq', 'z\'', 're(z)', 'z\"', 'im(z)', 'real', 'imag', 'ohm', 'hz']
+  const possibleHeaders = ['freq', 'z\'', 're(z)', 'z"', 'im(z)', 'real', 'imag', 'ohm', 'hz']
   
   for (let i = 0; i < Math.min(lines.length, 50); i++) {
-    const lowerLine = lines[i].toLowerCase()
+    const line = lines[i]
+    if (!line) continue
+    const lowerLine = line.toLowerCase()
     const matchCount = possibleHeaders.filter(h => lowerLine.includes(h)).length
     // If we find at least 2 common headers, it's likely the header row
     if (matchCount >= 2) {
@@ -33,7 +35,7 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
   }
 
   // Helper to parse numbers robustly
-  const parseNum = (val: any) => {
+  const parseNum = (val: string | number | undefined | null): number => {
     if (val === undefined || val === null || val === '') return NaN
     if (typeof val === 'number') return val
     // Remove spaces (common in thousands separators) and replace comma with dot
@@ -42,18 +44,30 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
     return isNaN(parsed) ? NaN : parsed
   }
 
-  let results: Papa.ParseResult<any>
+  let results: Papa.ParseResult<Record<string, string | number>>
+  // Tracks whether the imaginary column already represents -Im(Z) (positive for capacitive).
+  // Set inside transformHeader based on the original column name, then used in the row mapper.
+  let imaginaryAlreadyNegated = true
 
   if (headerIndex !== -1) {
     const cleanCsvText = lines.slice(headerIndex).join('\n')
-    results = Papa.parse(cleanCsvText, {
+    results = Papa.parse<Record<string, string | number>>(cleanCsvText, {
       header: true,
       delimiter: delimiter,
       skipEmptyLines: 'greedy',
       transformHeader: (header) => {
         const h = header.toLowerCase().trim()
         if (h.includes('freq') || h === 'f' || h.includes('(hz)')) return 'freq/Hz'
-        if (h.includes('z\'\'') || h.includes('z\"') || h.includes('im(z)') || h.includes('z2') || h.includes('imag')) return '-Im(Z)/Ohm'
+        // Headers that already represent -Im(Z) (z'', z", -im...): sign is correct as-is
+        if (h.includes("z''") || h.includes('z"') || h.startsWith('-im') || h.includes('-im(z)')) {
+          imaginaryAlreadyNegated = true
+          return '-Im(Z)/Ohm'
+        }
+        // Headers that represent Im(Z) without negation: values will be negative for capacitive → flip
+        if (h.includes('im(z)') || h.includes('z2') || h.includes('imag')) {
+          imaginaryAlreadyNegated = false
+          return '-Im(Z)/Ohm'
+        }
         if (h.includes('z\'') || h.includes('re(z)') || h.includes('z1') || h.includes('real')) return 'Re(Z)/Ohm'
         if (h.includes('|z|') || h.includes('mag')) return '|Z|/Ohm'
         if (h.includes('phase')) return 'Phase(Z)/deg'
@@ -62,16 +76,16 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
     })
   } else {
     // FALLBACK: If no header found, parse as raw data and try to guess columns
-    results = Papa.parse(lines.join('\n'), {
+    const rawResults = Papa.parse<string[]>(lines.join('\n'), {
       header: false,
       delimiter: delimiter,
       skipEmptyLines: 'greedy'
     })
     
     // Try to find the first row that looks like data
-    const dataRows = results.data as string[][]
-    let firstDataRowIdx = dataRows.findIndex(row => 
-      row.filter(cell => !isNaN(parseNum(cell))).length >= 3
+    const dataRows = rawResults.data
+    const firstDataRowIdx = dataRows.findIndex(row => 
+      row && row.filter(cell => !isNaN(parseNum(cell))).length >= 3
     )
 
     if (firstDataRowIdx === -1) return []
@@ -80,11 +94,12 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
     const processed: EisDataPoint[] = []
     for (let i = firstDataRowIdx; i < dataRows.length; i++) {
       const row = dataRows[i]
+      if (!row) continue
       const nums = row.map(parseNum).filter(n => !isNaN(n))
       if (nums.length < 3) continue
 
       const freq = parseNum(row[0])
-      let re = parseNum(row[1])
+      const re = parseNum(row[1])
       let im = parseNum(row[2])
       
       if (isNaN(freq) || isNaN(re) || isNaN(im)) continue
@@ -96,29 +111,30 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
         'Re(Z)/Ohm': re,
         '-Im(Z)/Ohm': im,
         '|Z|/Ohm': Math.sqrt(re*re + im*im),
-        'Phase(Z)/deg': Math.atan2(-im, re) * (180 / Math.PI)
+        'Phase(Z)/deg': Math.atan2(im, re) * (180 / Math.PI)
       })
     }
     return processed
   }
 
-  const rawData = results.data as any[]
+  const rawData = results.data
   const processedData: EisDataPoint[] = rawData
     .map((row) => {
+      if (!row) return null
       const freq = parseNum(row['freq/Hz'])
-      let re = parseNum(row['Re(Z)/Ohm'])
+      const re = parseNum(row['Re(Z)/Ohm'])
       let im = parseNum(row['-Im(Z)/Ohm'])
       let mag = parseNum(row['|Z|/Ohm'])
       let phase = parseNum(row['Phase(Z)/deg'])
 
       if (isNaN(freq) || isNaN(re) || isNaN(im)) return null
 
-      if (im < 0 && !Object.keys(row).some(k => k.toLowerCase().includes('-im'))) {
-          im = -im
+      if (im < 0 && !imaginaryAlreadyNegated) {
+        im = -im
       }
 
       if (isNaN(mag)) mag = Math.sqrt(re * re + im * im)
-      if (isNaN(phase)) phase = Math.atan2(-im, re) * (180 / Math.PI)
+      if (isNaN(phase)) phase = Math.atan2(im, re) * (180 / Math.PI)
 
       return {
         'freq/Hz': freq,

@@ -16,15 +16,18 @@ const ELEMENT_DEFAULTS: Partial<Record<ElementType, number>> = {
   R: 100, C: 1e-6, CPE: 1e-5, W: 100, Wo: 100, Ws: 100, L: 1e-6,
 }
 
-// Default second parameter (τ) for the two-parameter Warburg elements.
+// Default second parameter for two-param elements: n for CPE, τ for Wo/Ws.
 const ELEMENT_DEFAULTS2: Partial<Record<ElementType, number>> = {
+  CPE: 0.85,
   Wo: 1.0,
   Ws: 1.0,
 }
 
 export function useCircuitTree() {
   // The root of the circuit tree. Changing this ref triggers a full re-render.
-  const rootNode = ref<CircuitNode>(new CircuitNode('R0', 'R', 100))
+  const initialRoot = new CircuitNode('R0', 'R', 100)
+  initialRoot.applyDefaultLimits()
+  const rootNode = ref<CircuitNode>(initialRoot)
 
   // Incremented after every structural change so the SVG can use :key to re-render.
   const renderVersion = ref(0)
@@ -55,14 +58,30 @@ export function useCircuitTree() {
     counters.W = 0; counters.Wo = 0; counters.Ws = 0
     counters.L = 0; counters.P = 0
 
-    const all = collectNodes(rootNode.value)
-    for (const node of all) {
+    // We need a traversal that includes parallel nodes to reset the P counter
+    const visited = new Set<string>()
+    function walk(node: CircuitNode | null) {
+      if (!node || visited.has(node.id)) return
+      visited.add(node.id)
+
       const match = node.id.match(/^([A-Za-z]+)(\d+)$/)
-      if (!match || !match[1] || !match[2]) continue
-      const prefix = match[1] as keyof typeof counters
-      const num    = parseInt(match[2], 10) + 1
-      if (prefix in counters && num > counters[prefix]) counters[prefix] = num
+      if (match && match[1] && match[2]) {
+        const prefix = match[1]
+        const num    = parseInt(match[2], 10) + 1
+        
+        // Handle both uppercase 'P' in counters and potential lowercase 'p' in IDs
+        const key = prefix.toUpperCase() === 'P' ? 'P' : prefix as keyof typeof counters
+        if (key in counters && num > counters[key]) {
+          counters[key] = num
+        }
+      }
+
+      if (node.upperBranch) walk(node.upperBranch)
+      if (node.lowerBranch) walk(node.lowerBranch)
+      if (node.next)        walk(node.next)
     }
+
+    walk(rootNode.value)
   }
 
   // ── Tree traversal ────────────────────────────────────────────────────────
@@ -95,6 +114,9 @@ export function useCircuitTree() {
       ELEMENT_DEFAULTS[newType] ?? 100,
       ELEMENT_DEFAULTS2[newType] ?? 1.0,
     )
+    
+    // Apply default physical limits
+    newNode.applyDefaultLimits()
 
     if (action === 'before') {
       newNode.setNext(targetNode)
@@ -132,6 +154,10 @@ export function useCircuitTree() {
       ELEMENT_DEFAULTS[type] ?? 100,
       ELEMENT_DEFAULTS2[type] ?? 1.0,
     )
+    
+    // Apply default physical limits
+    newNode.applyDefaultLimits()
+
     newNode.setEarlier(parentNode)
     if (branch === 'upper') parentNode.upperBranch = newNode
     else                    parentNode.lowerBranch = newNode
