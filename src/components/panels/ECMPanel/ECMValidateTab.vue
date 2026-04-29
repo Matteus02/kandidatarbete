@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue'
-import type { CircuitNode } from '@/components/circuit/CircuitNode'
+import type { CircuitNode } from '@/utils/CircuitNode'
 import type { EisDataPoint } from '@/types/eis'
 import type { ModelData } from '@/composables/useCircuitModel'
-import ResidualPlot from '@/components/plots/ResidualPlot.vue'
+import ResidualPlot from './ResidualPlot.vue'
 import { calculateChiSquared } from '@/utils/chiSquared'
 import { calculateResiduals } from '@/utils/residuals'
 

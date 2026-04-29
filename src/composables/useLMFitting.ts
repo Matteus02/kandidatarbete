@@ -1,39 +1,9 @@
-// Vue composable for EIS circuit parameter fitting using Levenberg-Marquardt.
-//
-// Provides two functions:
-//
-//   estimateInitialValues
-//     Reads five features from the EIS spectrum to set physically meaningful
-//     starting parameters before optimisation:
-//       - Re(Z) at highest frequency      → first series R (ohmic intercept)
-//       - -Im(Z) peak amplitudes          → parallel R per arc,
-//                                           via R = 2·Im_peak / tan(n·π/4)
-//       - -Im(Z) peak frequencies         → C or CPE-Q per arc,
-//                                           via C = 1/(R·ωp) or Q = 1/(R·ωp^n)
-//       - Low-frequency 1/√ω regression  → Warburg coefficient A (W, Wo, Ws);
-//                                           Wo/Ws also get τ = 1/ω_lowest
-//       - High-frequency Im(Z) sign       → inductance L = |Im(Z_HF)| / ω_HF
-//                                           (only when Im(Z) is negative at HF)
-//     Arc peaks are detected with light 3-point smoothing and a 5 % prominence
-//     threshold; if no peak is found the global -Im(Z) maximum is used as a
-//     fallback. Peaks are consumed in high-to-low frequency order, matching
-//     parallel blocks encountered during the tree walk.
-//
-//   fitModel
-//     Sends the circuit tree and EIS data to a Web Worker that runs the
-//     Levenberg-Marquardt algorithm from ml-levenberg-marquardt.
-//     All parameters are optimised in log-space so that resistances (100s Ω)
-//     and capacitances (1e-6 F) have equal influence on the step size.
-//     CPE n is bounded [0.1, 1.0]. Modulus weighting balances low- and
-//     high-impedance ranges. Results are written back to the reactive tree
-//     on the main thread after the worker responds.
-
 import { ref, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
-import type { CircuitNode } from '@/components/circuit/CircuitNode'
+import type { CircuitNode } from '@/utils/CircuitNode'
 import type { EisDataPoint } from '@/types/eis'
 import FittingWorker from '@/workers/lmFitting.worker.ts?worker'
-import type { FittingRequest, FittingResponse, SerializedNode } from '@/ai/fittingWorkerProtocol'
+import type { FittingRequest, FittingResponse, SerializedNode } from '@/types/fittingWorkerProtocol'
 
 type CollectFn = (node: CircuitNode | null) => CircuitNode[]
 
@@ -78,7 +48,6 @@ export function useLMFitting(
 ) {
   const isFitting = ref(false)
 
-  // Component-scoped worker instance.
   let fittingWorker: Worker | null = null
   function getFittingWorker(): Worker {
     if (!fittingWorker) fittingWorker = new FittingWorker()

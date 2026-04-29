@@ -1,11 +1,9 @@
 /**
- * Calculates normalized residuals for EIS model validation.
- * 
  * Formula:
  *   Real Residual = (Z'_meas - Z'_mod) / |Z_meas| * 100
  *   Imaginary Residual = (Z''_meas - Z''_mod) / |Z_meas| * 100
- * 
- * Normalizing by the modulus ensures that errors are relative to the 
+ *
+ * Normalizing by the modulus ensures that errors are relative to the
  * impedance magnitude at that frequency, which is standard in EIS analysis.
  */
 export function calculateResiduals(

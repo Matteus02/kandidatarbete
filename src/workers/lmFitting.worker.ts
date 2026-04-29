@@ -1,9 +1,9 @@
 /// <reference lib="webworker" />
 
-import { CircuitNode } from '@/components/circuit/CircuitNode'
+import { CircuitNode } from '@/utils/CircuitNode'
 import { zOfChain } from '@/utils/circuitImpedance'
 import { fitCircuit } from '@/utils/lmFitting'
-import type { FittingRequest, FittingResponse, SerializedNode } from '@/ai/fittingWorkerProtocol'
+import type { FittingRequest, FittingResponse, SerializedNode } from '@/types/fittingWorkerProtocol'
 
 function deserializeNodes(nodes: SerializedNode[], rootId: string): CircuitNode {
   // Pass 1: create all node instances

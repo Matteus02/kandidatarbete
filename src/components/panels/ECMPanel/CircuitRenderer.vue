@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CircuitNode, NODE_WIDTH, NODE_HEIGHT, HORIZONTAL_SPACING, PARALLEL_SPACING } from '@/components/circuit/CircuitNode'
+import { CircuitNode, NODE_WIDTH, NODE_HEIGHT, HORIZONTAL_SPACING, PARALLEL_SPACING } from '@/utils/CircuitNode'
 import ResistorSymbol from './symbols/ResistorSymbol.vue'
 import CapacitorSymbol from './symbols/CapacitorSymbol.vue'
 import CpeSymbol from './symbols/CpeSymbol.vue'

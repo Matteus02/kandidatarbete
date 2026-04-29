@@ -7,7 +7,7 @@
 //   zOfNode  — computes Z for a single node (element or parallel block)
 //   zOfChain — sums impedances along a series chain by following .next pointers
 
-import type { CircuitNode } from '@/components/circuit/CircuitNode'
+import type { CircuitNode } from '@/utils/CircuitNode'
 import { type Complex, add, parallel, zR, zC, zCPE, zW, zL, zWo, zWs } from '@/utils/impedance'
 
 // Compute Z for a single node at angular frequency ω.

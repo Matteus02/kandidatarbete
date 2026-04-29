@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type { CircuitNode } from '@/components/circuit/CircuitNode'
+import type { CircuitNode } from '@/utils/CircuitNode'
 import { zOfChain } from '@/utils/circuitImpedance'
 
 export interface ModelData {

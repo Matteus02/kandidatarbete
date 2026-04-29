@@ -1,11 +1,6 @@
 import * as Papa from 'papaparse'
 import type { EisDataPoint } from '@/types/eis'
 
-/**
- * Robustly parses EIS CSV data.
- * Handles metadata headers, different column naming conventions, 
- * and missing values.
- */
 export function parseEisCsv(csvText: string): EisDataPoint[] {
   // 1. Normalize line endings and clean up
   const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0)
@@ -21,7 +16,7 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
   // 3. Find the header row
   let headerIndex = -1
   const possibleHeaders = ['freq', 'z\'', 're(z)', 'z"', 'im(z)', 'real', 'imag', 'ohm', 'hz']
-  
+
   for (let i = 0; i < Math.min(lines.length, 50); i++) {
     const line = lines[i]
     if (!line) continue
@@ -81,10 +76,10 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
       delimiter: delimiter,
       skipEmptyLines: 'greedy'
     })
-    
+
     // Try to find the first row that looks like data
     const dataRows = rawResults.data
-    const firstDataRowIdx = dataRows.findIndex(row => 
+    const firstDataRowIdx = dataRows.findIndex(row =>
       row && row.filter(cell => !isNaN(parseNum(cell))).length >= 3
     )
 
@@ -101,11 +96,11 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
       const freq = parseNum(row[0])
       const re = parseNum(row[1])
       let im = parseNum(row[2])
-      
+
       if (isNaN(freq) || isNaN(re) || isNaN(im)) continue
 
       if (im < 0) im = -im
-      
+
       processed.push({
         'freq/Hz': freq,
         'Re(Z)/Ohm': re,

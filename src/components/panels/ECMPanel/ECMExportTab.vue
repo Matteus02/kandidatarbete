@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { CircuitNode } from '@/components/circuit/CircuitNode'
+import type { CircuitNode } from '@/utils/CircuitNode'
 import type { ModelData } from '@/composables/useCircuitModel'
 import { stringifyTree } from '@/utils/circuitParser'
 import { exportParametersToCSV, exportModelTraceToCSV, downloadFile, exportSvgAsPng } from '@/utils/exportUtils'

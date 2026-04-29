@@ -1,4 +1,4 @@
-import type { ElementType } from '@/components/circuit/CircuitNode'
+import type { ElementType } from '@/utils/CircuitNode'
 
 // JSON-serializable snapshot of one CircuitNode.
 // Pointer fields are stored as string IDs so the worker can reconstruct the tree.

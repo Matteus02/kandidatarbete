@@ -8,7 +8,7 @@
 // Example:  "R0-p(R1,CPE0)-W0"
 //   → R0 (series)  →  parallel(R1, CPE0)  →  W0 (series)
 
-import { CircuitNode, type ElementType } from '@/components/circuit/CircuitNode'
+import { CircuitNode, type ElementType } from '@/utils/CircuitNode'
 
 type ElementInfo = { type: ElementType; value: number; value2?: number }
 

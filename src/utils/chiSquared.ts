@@ -1,9 +1,3 @@
-/**
- * Calculates the weighted Chi-Squared (χ²) statistic for EIS model validation.
- * 
- * Formula: Sum [ (Re_meas - Re_mod)² + (Im_meas - Im_mod)² ] / |Z_meas|²
- * This weighting balances contributions from high and low impedance regions.
- */
 export function calculateChiSquared(
   measRe: number[],
   measIm: number[],
@@ -26,8 +20,7 @@ export function calculateChiSquared(
     const dRe = rMeas - rMod
     const dIm = iMeas - iMod
 
-    // Modulus weighting: |Z_meas|² = Re² + Im²
-    // We use a small epsilon to avoid division by zero
+  
     const weight = rMeas * rMeas + iMeas * iMeas
     const w = weight > 1e-12 ? weight : 1e-12
 

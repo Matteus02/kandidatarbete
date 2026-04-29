@@ -2,7 +2,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import type { EisDataPoint, LocalStore } from '@/types/eis'
-import type { InferenceRequest, InferenceResponse } from '@/ai/workerProtocol'
+import type { InferenceRequest, InferenceResponse } from '@/types/workerProtocol'
 import InferenceWorker from '@/workers/eisInference.worker.ts?worker'
 
 const props = defineProps<{ 

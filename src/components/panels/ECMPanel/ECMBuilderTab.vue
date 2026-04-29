@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { CircuitNode } from '@/components/circuit/CircuitNode'
-import CircuitRenderer from '@/components/circuit/CircuitRenderer.vue'
-import CircuitPalette  from '@/components/circuit/CircuitPalette.vue'
-import CommonCircuitsDropdown from '@/components/circuit/CommonCircuitsDropdown.vue'
+import type { CircuitNode } from '@/utils/CircuitNode'
+import CircuitRenderer from './CircuitRenderer.vue'
+import CircuitPalette  from './CircuitPalette.vue'
+import CommonCircuitsDropdown from './CommonCircuitsDropdown.vue'
 import { stringifyTree } from '@/utils/circuitParser'
 
 const props = defineProps<{
