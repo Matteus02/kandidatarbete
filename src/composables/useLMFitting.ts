@@ -135,6 +135,14 @@ export function useLMFitting(
     let arcIdx     = 0
     let seriesRIdx = 0
 
+    // Count parallel blocks so we can divide the impedance span evenly
+    // when there are fewer detected peaks than parallel blocks.
+    function countParallelBlocks(node: CircuitNode | null): number {
+      if (!node || node.type === 'end') return 0
+      return (node.type === 'parallel' ? 1 : 0) + countParallelBlocks(node.next)
+    }
+    const numParallelBlocks = Math.max(countParallelBlocks(rootNode.value), 1)
+
     // For a parallel R-CPE arc the peak condition gives R·Q·ωp^n = 1, so:
     //   Q = 1 / (R · ωp^n)
     // The -Im(Z) amplitude at the peak equals R/2 · tan(n·π/4), so:
@@ -170,14 +178,17 @@ export function useLMFitting(
 
         case 'parallel': {
           // Consume the next highest-frequency arc peak for this parallel block.
+          // If we have fewer detected peaks than parallel blocks, divide the total
+          // impedance span evenly so each block doesn't get the full arc amplitude.
           const arc    = arcPeaks[arcIdx] ?? arcPeaks[arcPeaks.length - 1] ?? { f: 1, imPeak: (ReMax - Rs) / 2 }
+          const fallbackScale = arcIdx >= arcPeaks.length ? 1 / numParallelBlocks : 1
           arcIdx++
           const omegaC = 2 * Math.PI * arc.f
           // Determine n from whichever capacitive element sits in either branch,
           // then compute one shared R_p so R and C/CPE stay self-consistent.
           const capNode = findCapInChain(node.upperBranch) ?? findCapInChain(node.lowerBranch)
           const nEst = capNode?.type === 'CPE' ? 0.85 : 1
-          const Rp   = rFromPeak(arc.imPeak, nEst)
+          const Rp   = rFromPeak(arc.imPeak, nEst) * fallbackScale
           assignBranch(node.upperBranch, Rp, omegaC)
           assignBranch(node.lowerBranch, Rp, omegaC)
           break
