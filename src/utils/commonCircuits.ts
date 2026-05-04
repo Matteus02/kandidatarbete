@@ -6,53 +6,63 @@ export interface CommonCircuit {
 
 export const COMMON_CIRCUITS: CommonCircuit[] = [
   {
-    name: 'Pure Resistor',
-    circuit: 'R0',
-    description: 'A single resistor'
+    name: 'R1+Q2/R2',
+    circuit: 'R0-p(CPE0,R1)',
+    description: 'R in series with (Q parallel R)'
   },
   {
-    name: 'Pure Capacitor',
-    circuit: 'C0',
-    description: 'A single capacitor'
+    name: 'R1+Q2/R2+Q3',
+    circuit: 'R0-p(CPE0,R1)-CPE1',
+    description: 'R in series with (Q parallel R) in series with Q'
   },
   {
-    name: 'Resistor in series with Capacitor',
-    circuit: 'R0-C0',
-    description: 'Series RC circuit'
+    name: 'R1+Q2/R2+Q3/R3+Q4',
+    circuit: 'R0-p(CPE0,R1)-p(CPE1,R2)-CPE2',
+    description: 'R in series with two (Q parallel R) elements in series with Q'
   },
   {
-    name: 'Resistor in parallel with Capacitor',
-    circuit: 'p(R0,C0)',
-    description: 'Parallel RC circuit'
+    name: 'R1+Q2/R2+W3',
+    circuit: 'R0-p(CPE0,R1)-W0',
+    description: 'R in series with (Q parallel R) in series with Warburg'
   },
   {
-    name: 'Randles',
-    circuit: 'R0-p(R1,CPE0)',
-    description: 'Basic Randles circuit'
+    name: 'R1+C2/R2+C3/R3',
+    circuit: 'R0-p(C0,R1)-p(C1,R2)',
+    description: 'R in series with two (C parallel R) elements'
   },
   {
-    name: 'Randles with Warburg',
-    circuit: 'R0-p(R1,CPE0)-W0',
-    description: 'Randles circuit with semi-infinite Warburg diffusion'
+    name: 'R1+C2/R2+C3/R3+W4',
+    circuit: 'R0-p(C0,R1)-p(C1,R2)-W0',
+    description: 'R in series with two (C parallel R) elements in series with Warburg'
   },
   {
-    name: 'Randles with Finite Warburg',
-    circuit: 'R0-p(R1,CPE0)-W_finite',
-    description: 'Randles circuit with finite-length Warburg diffusion'
+    name: 'R1+C2/R2+Q3/R3',
+    circuit: 'R0-p(C0,R1)-p(CPE0,R2)',
+    description: 'R in series with (C parallel R) in series with (Q parallel R)'
   },
   {
-    name: 'Two Time Constants',
-    circuit: 'R0-p(R1,CPE0)-p(R2,CPE1)',
-    description: 'Circuit with two parallel RC/CPE elements in series'
+    name: 'R1+Q2/(R2+Q2)',
+    circuit: 'R0-p(CPE0,R1-CPE1)',
+    description: 'R in series with Q parallel (R in series with Q)'
   },
   {
-    name: 'Two Time Constants with Warburg',
-    circuit: 'R0-p(R1,CPE0)-p(R2,CPE1)-W0',
-    description: 'Two time constants with semi-infinite Warburg diffusion'
+    name: 'R1+Q2/(R2+Q2)+Q3',
+    circuit: 'R0-p(CPE0,R1-CPE1)-CPE2',
+    description: 'R in series with Q parallel (R in series with Q) in series with Q'
   },
   {
-    name: 'Two Time Constants with Inductor',
-    circuit: 'R0-L0-p(R1,CPE0)-p(R2,CPE1)',
-    description: 'Two time constants with an additional series inductor'
+    name: 'R1+C2/(R2+W2)',
+    circuit: 'R0-p(C0,R1-W0)',
+    description: 'R in series with C parallel (R in series with Warburg)'
+  },
+  {
+    name: 'R1+C2/R2+C3/(R3+W3)',
+    circuit: 'R0-p(C0,R1)-p(C1,R2-W0)',
+    description: 'R in series with (C parallel R) in series with C parallel (R in series with Warburg)'
+  },
+  {
+    name: 'R1+Q1/(R2+W2)+Q3/R3',
+    circuit: 'R0-p(CPE0,R1-W0)-p(CPE1,R2)',
+    description: 'R in series with Q parallel (R in series with Warburg) in series with (Q parallel R)'
   }
 ]
