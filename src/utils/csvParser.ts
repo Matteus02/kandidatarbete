@@ -43,6 +43,7 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
   // Tracks whether the imaginary column already represents -Im(Z) (positive for capacitive).
   // Set inside transformHeader based on the original column name, then used in the row mapper.
   let imaginaryAlreadyNegated = true
+  let phaseIsNegated = false
 
   if (headerIndex !== -1) {
     const cleanCsvText = lines.slice(headerIndex).join('\n')
@@ -65,7 +66,10 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
         }
         if (h.includes('z\'') || h.includes('re(z)') || h.includes('z1') || h.includes('real')) return 'Re(Z)/Ohm'
         if (h.includes('|z|') || h.includes('mag')) return '|Z|/Ohm'
-        if (h.includes('phase')) return 'Phase(Z)/deg'
+        if (h.includes('phase')) {
+          if (h.includes('neg')) phaseIsNegated = true
+          return 'Phase(Z)/deg'
+        }
         return header
       }
     })
@@ -128,6 +132,7 @@ export function parseEisCsv(csvText: string): EisDataPoint[] {
         im = -im
       }
 
+      if (!isNaN(phase) && phaseIsNegated) phase = -phase
       if (isNaN(mag)) mag = Math.sqrt(re * re + im * im)
       if (isNaN(phase)) phase = Math.atan2(im, re) * (180 / Math.PI)
 
