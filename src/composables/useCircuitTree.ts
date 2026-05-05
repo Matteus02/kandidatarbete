@@ -68,7 +68,7 @@ export function useCircuitTree() {
       if (match && match[1] && match[2]) {
         const prefix = match[1]
         const num    = parseInt(match[2], 10) + 1
-        
+
         // Handle both uppercase 'P' in counters and potential lowercase 'p' in IDs
         const key = prefix.toUpperCase() === 'P' ? 'P' : prefix as keyof typeof counters
         if (key in counters && num > counters[key]) {
@@ -114,7 +114,7 @@ export function useCircuitTree() {
       ELEMENT_DEFAULTS[newType] ?? 100,
       ELEMENT_DEFAULTS2[newType] ?? 1.0,
     )
-    
+
     // Apply default physical limits
     newNode.applyDefaultLimits()
 
@@ -154,7 +154,7 @@ export function useCircuitTree() {
       ELEMENT_DEFAULTS[type] ?? 100,
       ELEMENT_DEFAULTS2[type] ?? 1.0,
     )
-    
+
     // Apply default physical limits
     newNode.applyDefaultLimits()
 
@@ -177,6 +177,24 @@ export function useCircuitTree() {
     renderVersion.value++
   }
 
+  function morphNode(node: CircuitNode, newType: ElementType) {
+  // 1. Generera ett nytt ID (t.ex. CPE0 blir W1)
+  node.id = nextId(newType);
+  node.type = newType;
+
+  // 2. Anpassa parametrar
+  // Om vi går från CPE till W, behåller vi 'value' (Q blir A)
+  // Om vi går till Wo/Ws behöver vi se till att value2 (tau) finns
+  if ((newType === 'Wo' || newType === 'Ws') && node.value2 === undefined) {
+    node.value2 = 1.0; // Standardvärde för tidskonstant
+  }
+
+  node.applyDefaultLimits();
+  renderVersion.value++;
+}
+
+// Kom ihåg att lägga till morphNode i return-objektet för useCircuitTree!
+
   return {
     rootNode,
     renderVersion,
@@ -185,5 +203,6 @@ export function useCircuitTree() {
     handleNodeDrop,
     insertIntoEmptyBranch,
     deleteNode,
+    morphNode,
   }
 }

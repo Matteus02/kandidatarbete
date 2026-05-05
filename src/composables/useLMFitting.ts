@@ -1,6 +1,6 @@
 import { ref, onUnmounted } from 'vue'
 import type { Ref } from 'vue'
-import type { CircuitNode } from '@/utils/CircuitNode'
+import type { CircuitNode, ElementType } from '@/utils/CircuitNode'
 import type { EisDataPoint } from '@/types/eis'
 import FittingWorker from '@/workers/lmFitting.worker.ts?worker'
 import type { FittingRequest, FittingResponse, SerializedNode } from '@/types/fittingWorkerProtocol'
@@ -45,6 +45,7 @@ export function useLMFitting(
   getEisData: () => EisDataPoint[],
   collectNodes: CollectFn,
   onRedraw: () => void,
+  morphNode: (node: CircuitNode, newType: ElementType) => void,
 ) {
   const isFitting = ref(false)
 
@@ -328,7 +329,6 @@ export function useLMFitting(
     type ParamRef = { node: CircuitNode; param: 'value' | 'value2' }
     const paramRefs: ParamRef[] = []
     for (const node of optimizableNodes) {
-      // Only include unlocked parameters in the optimization
       if (node.locked === false) {
         paramRefs.push({ node, param: 'value' })
       }
@@ -345,35 +345,27 @@ export function useLMFitting(
 
     const minValues = paramRefs.map(r => {
       const node = r.node
-      if (r.param === 'value') {
-        return node.min ?? 1e-20
-      } else {
-        // value2
-        if (node.type === 'CPE') return Math.max(node.min2 ?? 0.1, 0.05)
-        return node.min2 ?? 1e-20
-      }
+      if (r.param === 'value') return node.min ?? 1e-20
+      if (node.type === 'CPE') return Math.max(node.min2 ?? 0.1, 0.05)
+      return node.min2 ?? 1e-20
     })
 
     const maxValues = paramRefs.map(r => {
       const node = r.node
-      if (r.param === 'value') {
-        return node.max ?? 1e20
-      } else {
-        // value2
-        if (node.type === 'CPE') return Math.min(node.max2 ?? 1.0, 1.0)
-        return node.max2 ?? 1e20
-      }
+      if (r.param === 'value') return node.max ?? 1e20
+      if (node.type === 'CPE') return Math.min(node.max2 ?? 1.0, 1.0)
+      return node.max2 ?? 1e20
     })
 
-    const sorted     = [...data].sort((a, b) => a['freq/Hz'] - b['freq/Hz'])
+    const sorted = [...data].sort((a, b) => a['freq/Hz'] - b['freq/Hz'])
     const frequencies = sorted.map(d => d['freq/Hz'])
-    const zReal       = sorted.map(d => d['Re(Z)/Ohm'])
-    const zImag       = sorted.map(d => d['-Im(Z)/Ohm'])
+    const zReal = sorted.map(d => d['Re(Z)/Ohm'])
+    const zImag = sorted.map(d => d['-Im(Z)/Ohm'])
 
     const request: FittingRequest = {
-      type:      'fit',
-      nodes:     serializeTree(rootNode.value),
-      rootId:    rootNode.value.id,
+      type: 'fit',
+      nodes: serializeTree(rootNode.value),
+      rootId: rootNode.value.id,
       frequencies,
       zReal,
       zImag,
@@ -402,10 +394,7 @@ export function useLMFitting(
 
       if (response.type === 'error') throw new Error(response.message)
 
-      console.log(
-        `LM fit converged in ${response.iterations} iterations. χ² = ${response.chiSquared.toExponential(3)}`,
-      )
-
+      // 1. Uppdatera alla parametrar med de fittade värdena
       for (let i = 0; i < paramRefs.length; i++) {
         const ref = paramRefs[i]!
         const node = ref.node
@@ -413,11 +402,36 @@ export function useLMFitting(
         const maxLim = ref.param === 'value' ? node.max : node.max2
         ref.node[ref.param] = Math.min(Math.max(response.fittedValues[i] ?? 1e-3, minLim ?? 1e-20), maxLim ?? 1e20)
       }
+
+      // 2. Rita om grafen med de nya värdena
       onRedraw()
+
+      // 3. 🧠 AUTOMATISK KONVERTERING (Här kommer den nya logiken!)
+      const allNodes = collectNodes(rootNode.value)
+      const tailNode = allNodes[allNodes.length - 1] // Vi antar att diffusion/svans är sist i kedjan
+
+      if (tailNode && tailNode.type === 'CPE') {
+        const n = tailNode.value2 ?? 0
+
+        // Kolla om n är nära 0.5 (Warburg)
+        if (n > 0.42 && n < 0.58) {
+          // Vi anropar funktionen från usecircuittree.ts
+            morphNode(tailNode, 'W')
+          console.log(`AI & Fit-koll: CPE konverterad till Warburg (n=${n.toFixed(2)})`)
+        }
+        // Kolla om n är väldigt högt (Kondensator)
+        else if (n > 0.85) {
+            morphNode(tailNode, 'C')
+          console.log("Hög fasvinkel detekterad: Konverterade svans till kondensator.")
+        }
+      }
+
+      console.log(`LM fit klar. χ² = ${response.chiSquared.toExponential(3)}`)
+
     } catch (err) {
       console.error('LM fitting failed:', err)
       const msg = err instanceof Error ? err.message : String(err)
-      alert(`Fitting error: ${msg.slice(0, 120)}. Try "Estimate Initial Values" first.`)
+      alert(`Fitting error: ${msg.slice(0, 300)}`)
     } finally {
       isFitting.value = false
     }

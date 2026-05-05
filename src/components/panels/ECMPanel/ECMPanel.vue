@@ -45,7 +45,7 @@ const tabs = [
 // ── Circuit tree logic (Parent-owned) ────────────────────────────────────────
 const {
   rootNode, renderVersion, collectNodes, resetCounters,
-  handleNodeDrop, insertIntoEmptyBranch, deleteNode,
+  handleNodeDrop, insertIntoEmptyBranch, deleteNode, morphNode
 } = useCircuitTree()
 
 provide('handleNodeDrop', handleNodeDrop)
@@ -103,6 +103,7 @@ const { isFitting, estimateInitialValues, fitModel } = useLMFitting(
   () => props.eisData,
   collectNodes,
   onRedraw,
+  morphNode
 )
 
 // ── AI suggestion integration ────────────────────────────────────────────────

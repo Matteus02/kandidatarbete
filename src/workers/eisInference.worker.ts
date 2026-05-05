@@ -16,7 +16,6 @@ function linspace(start: number, stop: number, num: number): number[] {
   return arr
 }
 
-// Mirrors np.unwrap: keeps successive phase differences within [-π, π]
 function unwrapPhase(angles: number[]): number[] {
   const out = [...angles]
   for (let i = 1; i < out.length; i++) {
@@ -26,7 +25,6 @@ function unwrapPhase(angles: number[]): number[] {
   return out
 }
 
-// Mirrors np.gradient with explicit x coordinates (central diffs, one-sided at edges)
 function gradient(y: number[], x: number[]): number[] {
   const n = y.length
   const g = Array.from<number>({ length: n })
@@ -42,27 +40,35 @@ function gradient(y: number[], x: number[]): number[] {
   return g
 }
 
-// Linear interpolation matching scipy interp1d(bounds_error=False, fill_value=0.0).
-// xKnown may be in any monotonic order; xQuery values outside range return 0.
 function interp1d(xKnown: number[], yKnown: number[], xQuery: number[]): number[] {
-  const n = xKnown.length
-  const ascending = xKnown[0]! < xKnown[n - 1]!
-  return xQuery.map((xq) => {
-    const xLo = ascending ? xKnown[0]! : xKnown[n - 1]!
-    const xHi = ascending ? xKnown[n - 1]! : xKnown[0]!
-    if (xq < xLo || xq > xHi) return 0.0
+  const n = xKnown.length;
 
-    for (let i = 0; i < n - 1; i++) {
-      const x0 = xKnown[i]!
-      const x1 = xKnown[i + 1]!
-      const inSegment = ascending ? xq >= x0 && xq <= x1 : xq <= x0 && xq >= x1
-      if (inSegment) {
-        const t = (xq - x0) / (x1 - x0)
-        return yKnown[i]! + t * (yKnown[i + 1]! - yKnown[i]!)
+  return xQuery.map((xq) => {
+    // 1. Om vi är utanför gränserna, använd närmaste kantvärde istället för 0.0!
+    const maxX = Math.max(...xKnown);
+    const minX = Math.min(...xKnown);
+
+    if (xq >= maxX) return yKnown[xKnown.indexOf(maxX)]!;
+    if (xq <= minX) return yKnown[xKnown.indexOf(minX)]!;
+
+    // 2. Leta efter rätt intervall
+    let i = 0;
+    while (i < n - 1) {
+      const x0 = xKnown[i]!;
+      const x1 = xKnown[i + 1]!;
+
+      // Kollar om xq ligger mellan x0 och x1 (oavsett om x-axeln är stigande eller fallande)
+      if ((x0 >= xq && x1 <= xq) || (x0 <= xq && x1 >= xq)) {
+        if (x1 === x0) return yKnown[i]!; // Undvik division med noll
+        const t = (xq - x0) / (x1 - x0);
+        return yKnown[i]! + t * (yKnown[i + 1]! - yKnown[i]!);
       }
+      i++;
     }
-    return 0.0
-  })
+
+    // Fallback till sista värdet
+    return yKnown[n - 1]!;
+  });
 }
 
 // ─── Tensor construction ──────────────────────────────────────────────────────
@@ -73,41 +79,43 @@ function buildTensor(data: InferenceRequest['data']): ort.Tensor {
 
   const rawLogFreq = sorted.map((d) => Math.log10(d['freq/Hz']))
   const rawReZ = sorted.map((d) => d['Re(Z)/Ohm'])
-  // Training uses Z.imag (can be negative); file stores -Im(Z), so negate it
+
+  // [UPPDATERING] Gör Imaginärdelen negativ igen för att math-logiken ska bli rätt
   const rawImZ = sorted.map((d) => -d['-Im(Z)/Ohm'])
 
-  // Phase derivative: d(unwrapped_phase_deg) / d(log10(f))
+  // [UPPDATERING] Beräkna fasen och dess derivata
   const angles = rawReZ.map((re, i) => Math.atan2(rawImZ[i]!, re))
-  const phaseDeg = unwrapPhase(angles).map((a) => a * (180 / Math.PI))
-  const rawPhaseDeriv = gradient(phaseDeg, rawLogFreq)
+  const rawPhaseDeg = unwrapPhase(angles).map((a) => a * (180 / Math.PI))
+  const rawPhaseDeriv = gradient(rawPhaseDeg, rawLogFreq)
 
-  // NYTT: Bode magnitude slope: d(log10|Z|) / d(log10(f))
-  const logMag = rawReZ.map((re, i) => {
+  // [UPPDATERING] Beräkna Bode magnitud (absolutbeloppet) istället för Slope
+  const rawLogMag = rawReZ.map((re, i) => {
     const im = rawImZ[i]!
     const mag = Math.sqrt(re * re + im * im)
-    return Math.log10(mag + 1e-30) // + 1e-30 för att undvika log(0) exakt som i Python
+    return Math.log10(mag + 1e-12)
   })
-  const rawBodeSlope = gradient(logMag, rawLogFreq)
 
   // 60-point log-spaced grid spanning the actual measurement window
   const logFmax = rawLogFreq[0]!
   const logFmin = rawLogFreq[rawLogFreq.length - 1]!
   const logFixed = linspace(logFmax, logFmin, N_POINTS)
 
-  // Interpolate channels 0, 1, 3, 4; channel 2 is logFixed itself
+  // [UPPDATERING] Packa de 6 kanalerna exakt i den ordning modellen förväntar sig
+  // Re, Im, f, Phase_d, Phase, Mag
   const channels = [
     interp1d(rawLogFreq, rawReZ, logFixed),
     interp1d(rawLogFreq, rawImZ, logFixed),
-    logFixed,
+    logFixed, // Frekvens-axeln i sig självt interpoleras inte
     interp1d(rawLogFreq, rawPhaseDeriv, logFixed),
-    interp1d(rawLogFreq, rawBodeSlope, logFixed), // NYTT: 5:e kanalen läggs till
+    interp1d(rawLogFreq, rawPhaseDeg, logFixed),
+    interp1d(rawLogFreq, rawLogMag, logFixed)
   ]
 
-  // NYTT: Buffer-storlek uppdaterad från 4 * N_POINTS till 5 * N_POINTS
-  const buffer = new Float32Array(5 * N_POINTS)
+  // [UPPDATERING] Buffer-storlek uppdaterad för 6 kanaler
+  const buffer = new Float32Array(6 * N_POINTS)
 
-  // NYTT: Loopa över 5 kanaler istället för 4
-  for (let ch = 0; ch < 5; ch++) {
+  // [UPPDATERING] Loopa över de 6 kanalerna
+  for (let ch = 0; ch < 6; ch++) {
     const vals = channels[ch]!
     const offset = ch * N_POINTS
 
@@ -130,8 +138,8 @@ function buildTensor(data: InferenceRequest['data']): ort.Tensor {
     }
   }
 
-  // NYTT: Dimensionerna uppdaterade till [1, 5, N_POINTS]
-  return new ort.Tensor('float32', buffer, [1, 5, N_POINTS])
+  // [UPPDATERING] Dimensionerna uppdaterade till [1, 6, N_POINTS]
+  return new ort.Tensor('float32', buffer, [1, 6, N_POINTS])
 }
 
 // ─── Softmax ──────────────────────────────────────────────────────────────────
