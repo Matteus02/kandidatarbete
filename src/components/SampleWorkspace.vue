@@ -187,7 +187,7 @@ const eisPlotsRef = ref<{ downloadPlotImage: (type: 'nyquist' | 'bode') => void 
 <style scoped>
 .sample-workspace {
   width: 100%;
-  padding: 20px;
+  padding: 10px;
   box-sizing: border-box;
 }
 
