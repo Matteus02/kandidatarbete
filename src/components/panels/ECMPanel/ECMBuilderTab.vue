@@ -30,18 +30,16 @@ defineExpose({
 
 <template>
   <div class="ecm-builder-tab">
-    <!-- Banner shown when a circuit was loaded from the AI tab -->
     <div v-if="aiAppliedCircuit" class="ai-banner">
       AI suggestion loaded: <code>{{ aiAppliedCircuit }}</code>
     </div>
 
     <CommonCircuitsDropdown :current-circuit="currentCircuitString" @select="$emit('select-circuit', $event)" />
 
-    <!-- SVG circuit canvas (key forces full re-render on every tree change) -->
     <div class="section-label">Circuit</div>
     <div class="canvas-wrap">
       <svg ref="svgRef" class="circuit-svg" width="900" height="250" style="overflow: visible" :key="renderVersion">
-        <!-- Start Terminal Symbol -->
+
         <g transform="translate(15, 125)">
           <circle cx="0" cy="0" r="4" fill="white" stroke="#333" stroke-width="2" />
           <line x1="4" y1="0" x2="35" y2="0" stroke="#333" stroke-width="2" />
@@ -49,8 +47,6 @@ defineExpose({
         <CircuitRenderer :node="rootNode" :x="50" :y="125" />
       </svg>
     </div>
-
-    <!-- Drag-and-drop element palette + usage instructions -->
     <CircuitPalette />
   </div>
 </template>

@@ -144,8 +144,8 @@ function fmt(v: number | undefined | null): string {
           <!-- Optional second row for two-parameter elements (CPE, Wo, Ws) -->
           <div v-if="UNITS2[node.type as ElementType]" class="param-secondary-row">
             <div class="lock-cell">
-              <button 
-                :class="['lock-btn', { 'lock-btn--active': node.locked2 }]" 
+              <button
+                :class="['lock-btn', { 'lock-btn--active': node.locked2 }]"
                 :title="node.locked2 ? 'Unlock parameter' : 'Lock parameter'"
                 @click="emit('toggleLock', node, 2)"
               >
@@ -201,7 +201,6 @@ function fmt(v: number | undefined | null): string {
 </template>
 
 <script lang="ts">
-// Custom directive to focus the input when it appears
 const vFocus = {
   mounted: (el: HTMLElement) => el.focus()
 }
@@ -212,11 +211,10 @@ const vFocus = {
   max-height: calc(100vh - 500px);
   overflow-y: auto;
   /* Use negative margins to pull the rows to the very edge of the BaseCard */
-  margin: 0 -24px; 
+  margin: 0 -24px;
   padding: 0;
 }
 
-/* Custom scrollbar for parameters */
 .param-editor-scroll::-webkit-scrollbar {
   width: 4px;
 }
@@ -245,7 +243,7 @@ const vFocus = {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px; /* Increased horizontal padding for the full-width look */
+  padding: 8px 16px;
 }
 
 .param-secondary-row {
@@ -350,7 +348,7 @@ const vFocus = {
   flex-shrink: 0;
 }
 
-.val-cell { width: 75px; } /* Reduced from 85px */
+.val-cell { width: 75px; } 
 
 .param-input {
   border: 1px solid #cbd5e1;

@@ -20,11 +20,10 @@ const copiedFreq = ref('')
 
 const handlePlotClick = (data: any) => {
   if (!data.points || data.points.length === 0) return
-  
+
   const point = data.points[0]
-  // We now consistently use customdata for the frequency value across all traces
   const freq = point.customdata
-  
+
   if (typeof freq === 'number') {
     const freqStr = freq.toExponential(3)
     navigator.clipboard.writeText(freqStr)
@@ -41,7 +40,7 @@ const drawPlots = () => {
 
   // --- Measurement Traces ---
   const freq = props.measurements.map(d => d['freq/Hz'])
-  
+
   const opacities = freq.map(f => {
     const min = props.minFreq ?? -Infinity
     const max = props.maxFreq ?? Infinity
@@ -52,13 +51,13 @@ const drawPlots = () => {
     x: props.measurements.map(d => d['Re(Z)/Ohm']),
     y: props.measurements.map(d => d['-Im(Z)/Ohm']),
     customdata: freq,
-    hovertemplate: 
+    hovertemplate:
       'Z\': %{x:.2f} Ω<br>' +
       '-Z\'\': %{y:.2f} Ω<br>' +
       'Freq: %{customdata:.2e} Hz<extra></extra>',
     mode: 'markers' as const,
-    marker: { 
-      size: 6, 
+    marker: {
+      size: 6,
       color: '#007bff',
       opacity: opacities
     },
@@ -72,8 +71,8 @@ const drawPlots = () => {
     customdata: freq,
     hovertemplate: 'Freq: %{x:.2e} Hz<br>|Z|: %{y:.2f} Ω<extra></extra>',
     mode: 'markers' as const,
-    marker: { 
-      size: 5, 
+    marker: {
+      size: 5,
       color: '#007bff',
       opacity: opacities
     },
@@ -88,8 +87,8 @@ const drawPlots = () => {
     customdata: freq,
     hovertemplate: 'Freq: %{x:.2e} Hz<br>Phase: %{y:.2f}°<extra></extra>',
     mode: 'markers' as const,
-    marker: { 
-      size: 5, 
+    marker: {
+      size: 5,
       color: '#28a745',
       opacity: opacities
     },
@@ -110,7 +109,7 @@ const drawPlots = () => {
       x: re,
       y: im,
       customdata: modelFreq,
-      hovertemplate: 
+      hovertemplate:
         'Z\': %{x:.2f} Ω<br>' +
         '-Z\'\': %{y:.2f} Ω<br>' +
         'Freq: %{customdata:.2e} Hz<extra></extra>',
@@ -201,11 +200,9 @@ const drawPlots = () => {
   Plotly.react(nyquistRef.value, tracesNyquist, nyqLayout, config)
   Plotly.react(bodeRef.value, tracesBode, bodeLayout, config)
 
-  // Attach click listeners (Plotly preserves listeners on react if element is same)
-  // We use .off().on() to ensure we don't stack multiple listeners if this is called multiple times
   ;(nyquistRef.value as any).removeAllListeners?.('plotly_click')
   ;(bodeRef.value as any).removeAllListeners?.('plotly_click')
-  
+
   ;(nyquistRef.value as any).on('plotly_click', handlePlotClick)
   ;(bodeRef.value as any).on('plotly_click', handlePlotClick)
 }
@@ -236,7 +233,6 @@ defineExpose({
       <div ref="bodeRef" class="plot-box" />
     </div>
 
-    <!-- Copy notification toast -->
     <Transition name="fade">
       <div v-if="showCopyToast" class="copy-toast">
         Copied frequency: <strong>{{ copiedFreq }} Hz</strong>

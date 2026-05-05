@@ -9,27 +9,27 @@ const version = '1.0.0 beta'
         <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
           <!-- White background for the circle -->
           <circle cx="20" cy="20" r="18" fill="white" />
-          
+
           <!-- Border: 3/4 Black part -->
-          <path 
-            d="M20 38 A18 18 0 1 1 38 20" 
-            stroke="black" 
-            stroke-width="2.5" 
-            fill="none" 
+          <path
+            d="M20 38 A18 18 0 1 1 38 20"
+            stroke="black"
+            stroke-width="2.5"
+            fill="none"
           />
           <!-- Border: 1/4 Gray part (Bottom-Right) -->
-          <path 
-            d="M38 20 A18 18 0 0 1 20 38" 
-            stroke="#94a3b8" 
-            stroke-width="2.5" 
-            fill="none" 
+          <path
+            d="M38 20 A18 18 0 0 1 20 38"
+            stroke="#94a3b8"
+            stroke-width="2.5"
+            fill="none"
           />
-          
+
           <!-- Resistor Zigzag inside: Connects each side -->
-          <path 
-            d="M2 20 L10 20 L13 14 L17 26 L21 14 L25 26 L29 20 L38 20" 
-            stroke="black" 
-            stroke-width="2.5" 
+          <path
+            d="M2 20 L10 20 L13 14 L17 26 L21 14 L25 26 L29 20 L38 20"
+            stroke="black"
+            stroke-width="2.5"
             stroke-linecap="round"
             stroke-linejoin="round"
           />

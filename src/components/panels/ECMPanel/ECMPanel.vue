@@ -1,6 +1,4 @@
 <script setup lang="ts">
-// ECM Builder — Interactive equivalent circuit modelling for EIS data.
-// Refactored to use a tabbed interface (Builder | Validate).
 
 import { ref, computed, watch, provide, onMounted } from 'vue'
 import BaseCard        from '@/components/ui/BaseCard.vue'
@@ -124,7 +122,7 @@ watch(
     aiAppliedCircuit.value = circuitStr
     resetCounters()
     renderVersion.value++
-    
+
     // Reset the suggested circuit in the store so it can be re-applied
     // even if the user clicks the same one again after manual changes.
     props.localStore.setAiSuggestedCircuit(null)
@@ -217,7 +215,7 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 24px; /* Increased from 12px */
+  margin-top: 24px; 
   padding-top: 16px;
   border-top: 1px solid #e2e8f0;
 }
