@@ -86,6 +86,8 @@ export class CircuitNode {
     nextNode?.setEarlier(this);
   }
 
+
+  //Används inte
   countAmount(): number {
     //console.log(`Counting amount for node ${this.id} of type ${this.type}`);
 
@@ -152,7 +154,7 @@ export class CircuitNode {
     this.next.setEarlier(this.earlier);
   }
   }
-
+//Troligen också inte använd
   placeNode(beforeNode: CircuitNode | null, afterNode: CircuitNode | null) {
     if (beforeNode) {
       beforeNode.setNext(this);
