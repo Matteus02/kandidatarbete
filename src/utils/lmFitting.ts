@@ -145,17 +145,45 @@ export function fitCircuit(options: FitCircuitOptions): FitCircuitResult {
     options.maxValues ?? initialParams.map(() => 1e20),
   )
 
-  const result = levenbergMarquardt({ x: xIndices, y: yData }, wrappedFn, {
-    initialValues: logInitial,
-    minValues: logMin,
-    maxValues: logMax,
-    damping: 1.5,
-    dampingStepDown: 9,
-    dampingStepUp: 11,
-    maxIterations: 1000,
-    errorTolerance: 1e-8,
-    centralDifference: true,
-  })
+  let result
+  let attempts = 0
+  let currentLogInitial = [...logInitial]
+
+  while (attempts < 3) {
+    try {
+      result = levenbergMarquardt({ x: xIndices, y: yData }, wrappedFn, {
+        initialValues: currentLogInitial,
+        minValues: logMin,
+        maxValues: logMax,
+        damping: 10.0 * Math.pow(10, attempts),
+        dampingStepDown: 9,
+        dampingStepUp: 11,
+        maxIterations: 1000,
+        errorTolerance: 1e-8,
+        centralDifference: true,
+      })
+      break
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('LU matrix is singular')) {
+        if (attempts < 2) {
+          attempts++
+          // Add small random noise (jitter) to escape the flat/singular region
+          currentLogInitial = currentLogInitial.map((v) => v + (Math.random() - 0.5) * 0.1)
+          continue
+        } else {
+          throw new Error(
+            'Fitting failed after multiple attempts: The parameter space is too flat or parameters are linearly dependent. Try locking some parameters or providing better initial guesses.',
+          )
+        }
+      }
+      throw err
+    }
+  }
+
+  if (!result) {
+    throw new Error('Fitting failed: The optimizer could not find a valid solution.')
+  }
 
   const fittedLogParams = result.parameterValues
   const fittedParams = fittedLogParams.map(Math.exp)
