@@ -3,10 +3,11 @@
 // Circuit string format (from the AI model's KNOWN_CIRCUITS):
 //   - Series elements are joined by "-":   R0-p(R1,CPE0)-W0
 //   - Parallel blocks use p(upper, lower): p(R1,CPE0)
+//   - Each branch of p(...) may itself be a series chain: p(C0,R1-W0)
 //   - Element IDs start with the element type letter: R, C, CPE, Wo, Ws, W, L
 //
-// Example:  "R0-p(R1,CPE0)-W0"
-//   → R0 (series)  →  parallel(R1, CPE0)  →  W0 (series)
+// Example:  "R0-p(C0,R1-W0)"
+//   → R0 (series)  →  parallel(C0,  R1-W0)
 
 import { CircuitNode, type ElementType } from '@/utils/CircuitNode'
 
@@ -48,13 +49,23 @@ function splitSeriesTopLevel(str: string): string[] {
   return parts
 }
 
-// Builds a CircuitNode linked-list tree from a circuit string.
-// Returns the root node of the resulting series chain.
-// Falls back to a single R0 = 100 Ω node if the string cannot be parsed.
-export function buildTreeFromString(circuitString: string): CircuitNode {
-  const elements = splitSeriesTopLevel(circuitString)
+// Finds the index of the first comma at depth 0 (not inside parentheses).
+// Needed to correctly split p(p(A,B),C) → upper="p(A,B)", lower="C".
+function findTopLevelComma(str: string): number {
+  let depth = 0
+  for (let i = 0; i < str.length; i++) {
+    if (str[i] === '(') depth++
+    else if (str[i] === ')') depth--
+    else if (str[i] === ',' && depth === 0) return i
+  }
+  return -1
+}
+
+// Internal recursive builder. pCounter is shared across all recursive calls
+// so that parallel node IDs (p0, p1, …) stay globally unique within one parse.
+function buildTreeInternal(circuitString: string, pCounter: { n: number }): CircuitNode {
+  const elements = splitSeriesTopLevel(circuitString.trim())
   const nodes: CircuitNode[] = []
-  let parallelIndex = 0
 
   for (const elem of elements) {
     const e = elem.trim()
@@ -62,25 +73,20 @@ export function buildTreeFromString(circuitString: string): CircuitNode {
     if (e.startsWith('p(') && e.endsWith(')')) {
       // ── Parallel block: p(upper, lower) ───────────────────────────────
       const inner    = e.slice(2, -1)
-      const comma    = inner.indexOf(',')
-      const upperStr = comma >= 0 ? inner.slice(0, comma) : inner
-      const lowerStr = comma >= 0 ? inner.slice(comma + 1) : ''
+      const comma    = findTopLevelComma(inner)
+      const upperStr = comma >= 0 ? inner.slice(0, comma).trim() : inner.trim()
+      const lowerStr = comma >= 0 ? inner.slice(comma + 1).trim() : ''
 
-      const pNode = new CircuitNode(`p${parallelIndex++}`, 'parallel', 0)
+      const pNode = new CircuitNode(`p${pCounter.n++}`, 'parallel', 0)
       pNode.applyDefaultLimits()
 
-      const uInfo = parseElementInfo(upperStr)
-      if (uInfo) {
-        const u = new CircuitNode(upperStr.trim(), uInfo.type, uInfo.value, uInfo.value2 ?? 1.0)
-        u.applyDefaultLimits()
-        u.setEarlier(pNode)
-        pNode.upperBranch = u
-      }
+      // Each branch can itself be a series chain — recurse.
+      const u = buildTreeInternal(upperStr, pCounter)
+      u.setEarlier(pNode)
+      pNode.upperBranch = u
 
-      const lInfo = lowerStr ? parseElementInfo(lowerStr) : null
-      if (lInfo) {
-        const l = new CircuitNode(lowerStr.trim(), lInfo.type, lInfo.value, lInfo.value2 ?? 1.0)
-        l.applyDefaultLimits()
+      if (lowerStr) {
+        const l = buildTreeInternal(lowerStr, pCounter)
         l.setEarlier(pNode)
         pNode.lowerBranch = l
       }
@@ -106,6 +112,13 @@ export function buildTreeFromString(circuitString: string): CircuitNode {
   const finalRoot = nodes[0] ?? new CircuitNode('R0', 'R', 100)
   finalRoot.applyDefaultLimits()
   return finalRoot
+}
+
+// Builds a CircuitNode linked-list tree from a circuit string.
+// Returns the root node of the resulting series chain.
+// Falls back to a single R0 = 100 Ω node if the string cannot be parsed.
+export function buildTreeFromString(circuitString: string): CircuitNode {
+  return buildTreeInternal(circuitString, { n: 0 })
 }
 
 /**

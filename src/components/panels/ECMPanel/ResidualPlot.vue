@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import Plotly from 'plotly.js-dist-min'
 import BaseCard from '@/components/ui/BaseCard.vue'
 
@@ -10,6 +10,7 @@ const props = defineProps<{
 }>()
 
 const plotRef = ref<HTMLElement | null>(null)
+let resizeObserver: ResizeObserver | null = null
 
 const drawPlot = () => {
   if (!plotRef.value || props.frequencies.length === 0) return
@@ -48,6 +49,7 @@ const drawPlot = () => {
     },
     margin: { t: 40, r: 20, b: 40, l: 50 },
     height: 350,
+    autosize: true,
     showlegend: true,
     legend: { orientation: 'h' as const, y: -0.2 },
     hovermode: 'closest' as const,
@@ -58,7 +60,26 @@ const drawPlot = () => {
   Plotly.react(plotRef.value, [traceRe, traceIm], layout, { responsive: true, displayModeBar: false })
 }
 
-onMounted(drawPlot)
+onMounted(() => {
+  drawPlot()
+  
+  if (plotRef.value) {
+    resizeObserver = new ResizeObserver(() => {
+      if (plotRef.value) {
+        Plotly.Plots.resize(plotRef.value)
+      }
+    })
+    resizeObserver.observe(plotRef.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
+})
+
 watch(() => [props.frequencies, props.residualsRe, props.residualsIm], drawPlot, { deep: true })
 </script>
 
