@@ -32,7 +32,6 @@ const emptyBranchHover = ref<'upper' | 'lower' | null>(null)
 const onDrop = (event: DragEvent, action: 'before' | 'replace' | 'after') => {
   hoverState.value = null;
   const type = event.dataTransfer?.getData('componentType');
-  // Om noden är tom, tolka alltid som 'replace' (starta ny krets)
   const finalAction = (!props.node || props.node.type === 'empty') ? 'replace' : action;
   if (type && handleNodeDrop) {
     handleNodeDrop(props.node, type, finalAction);
