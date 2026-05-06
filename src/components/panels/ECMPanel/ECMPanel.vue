@@ -114,15 +114,19 @@ watch(
   () => props.localStore.aiSuggestedCircuit,
   (circuitStr) => {
     if (!circuitStr) return
-    rootNode.value     = buildTreeFromString(circuitStr)
+    rootNode.value = buildTreeFromString(circuitStr)
     aiAppliedCircuit.value = circuitStr
     resetCounters()
     renderVersion.value++
 
-
     // Reset the suggested circuit in the store so it can be re-applied
     // even if the user clicks the same one again after manual changes.
     props.localStore.setAiSuggestedCircuit(null)
+
+    if (props.eisData.length > 0) {
+      showModel.value = true
+      fitModel().then(() => fitModel())
+    }
   },
   { immediate: true },
 )
@@ -183,6 +187,7 @@ watch(
             {{ isFitting ? 'Fitting…' : 'Fit Parameters (Auto)' }}
           </button>
           <span class="hint">Auto fits parameters using Levenberg Marquards algorithm</span>
+          <span class="hint">Click the lock icon to fix a parameter at its current value before fitting</span>
         </div>
       </BaseCard>
     </Teleport>
