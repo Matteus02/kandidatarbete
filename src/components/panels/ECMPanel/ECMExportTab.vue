@@ -56,7 +56,8 @@ function handleExportPlot(type: 'nyquist' | 'bode') {
         <h4 class="card-title">Model String</h4>
         <div class="string-display">
           <code class="circuit-code">{{ circuitString }}</code>
-          <button class="icon-btn" title="Copy to clipboard" @click="copyToClipboard">📋</button>
+          <button class="icon-btn" title="Copy to clipboard" @click="copyToClipboard">⎘
+</button>
         </div>
         <p class="card-hint">Standard notation for sharing or saving your circuit structure.</p>
       </div>
