@@ -119,6 +119,7 @@ watch(
     resetCounters()
     renderVersion.value++
 
+
     // Reset the suggested circuit in the store so it can be re-applied
     // even if the user clicks the same one again after manual changes.
     props.localStore.setAiSuggestedCircuit(null)
@@ -176,13 +177,9 @@ watch(
               >
               {{ showModel ? 'Disable ECM-Plot' : 'Enable ECM-plot' }}
             </button>
-            <button class="btn btn--outline" :disabled="eisData.length === 0"
-              @click="estimateInitialValues">
-              Guess Initial Values
-            </button>
           </div>
           <button class="btn btn--primary" :disabled="isFitting || eisData.length === 0"
-            @click="fitModel">
+            @click="estimateInitialValues">
             {{ isFitting ? 'Fitting…' : 'Fit Parameters (Auto)' }}
           </button>
           <span class="hint">Auto fits parameters using Levenberg Marquards algorithm</span>
