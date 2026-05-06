@@ -26,10 +26,6 @@ function serializeTree(root: CircuitNode): SerializedNode[] {
       lowerBranchId: node.lowerBranch?.id  ?? null,
       locked:        node.locked,
       locked2:       node.locked2,
-      min:           node.min,
-      max:           node.max,
-      min2:          node.min2,
-      max2:          node.max2,
     })
     visit(node.next)
     visit(node.upperBranch)
@@ -48,6 +44,7 @@ export function useLMFitting(
   morphNode: (node: CircuitNode, newType: ElementType) => void,
 ) {
   const isFitting = ref(false)
+  const paramErrors = ref<Record<string, number>>({})
 
   let fittingWorker: Worker | null = null
   function getFittingWorker(): Worker {
@@ -171,7 +168,7 @@ export function useLMFitting(
               ? Rs
               // Inner series R: use a small fraction of the total Re span as a safe seed
               : Math.max((ReMax - Rs) * 0.05, 1)
-            node.value = Math.min(Math.max(est, node.min ?? 1e-20), node.max ?? 1e20)
+            node.value = est
           }
           seriesRIdx++
           break
@@ -208,7 +205,7 @@ export function useLMFitting(
 
         case 'W':
           if (!node.locked) {
-            node.value = Math.min(Math.max(warburgA, node.min ?? 1e-20), node.max ?? 1e20)
+            node.value = warburgA
           }
           break
 
@@ -216,12 +213,10 @@ export function useLMFitting(
         case 'Ws': {
           const omegaLow = 2 * Math.PI * (freq[N - 1] ?? 0.01)
           if (!node.locked) {
-            const estV = Math.max(warburgA * Math.SQRT2, 1)
-            node.value = Math.min(Math.max(estV, node.min ?? 1e-20), node.max ?? 1e20)
+            node.value = Math.max(warburgA * Math.SQRT2, 1)
           }
           if (!node.locked2) {
-            const estV2 = Math.max(1 / omegaLow, 1e-4)
-            node.value2 = Math.min(Math.max(estV2, node.min2 ?? 1e-20), node.max2 ?? 1e20)
+            node.value2 = Math.max(1 / omegaLow, 1e-4)
           }
           break
         }
@@ -232,7 +227,7 @@ export function useLMFitting(
             const est = imHF < 0
               ? Math.abs(imHF) / (2 * Math.PI * (freq[0] ?? 1))
               : 1e-6
-            node.value = Math.min(Math.max(est, node.min ?? 1e-20), node.max ?? 1e20)
+            node.value = est
           }
           break
         }
@@ -248,7 +243,7 @@ export function useLMFitting(
       switch (node.type) {
         case 'R':
           if (!node.locked) {
-            node.value = Math.min(Math.max(Rp, node.min ?? 1e-20), node.max ?? 1e20)
+            node.value = Rp
           }
           break
         case 'C':
@@ -257,24 +252,21 @@ export function useLMFitting(
           break
         case 'W':
           if (!node.locked) {
-            node.value = Math.min(Math.max(warburgA, node.min ?? 1e-20), node.max ?? 1e20)
+            node.value = warburgA
           }
           break
         case 'Wo':
         case 'Ws':
           if (!node.locked) {
-            const estV = Math.max(Rp * 0.5, 1)
-            node.value = Math.min(Math.max(estV, node.min ?? 1e-20), node.max ?? 1e20)
+            node.value = Math.max(Rp * 0.5, 1)
           }
           if (!node.locked2) {
-            const estV2 = Math.max(1 / omegaC, 1e-4)
-            node.value2 = Math.min(Math.max(estV2, node.min2 ?? 1e-20), node.max2 ?? 1e20)
+            node.value2 = Math.max(1 / omegaC, 1e-4)
           }
           break
         case 'L':
           if (!node.locked) {
-            const est = 1e-6
-            node.value = Math.min(Math.max(est, node.min ?? 1e-20), node.max ?? 1e20)
+            node.value = 1e-6
           }
           break
       }
@@ -286,18 +278,15 @@ export function useLMFitting(
       if (node.type === 'C') {
         // C = 1 / (R · ω_peak) from the peak condition ω_peak · R · C = 1
         if (!node.locked) {
-          const est = 1 / (Math.max(Rp, 1) * omegaC)
-          node.value = Math.min(Math.max(est, node.min ?? 1e-20), node.max ?? 1e20)
+          node.value = 1 / (Math.max(Rp, 1) * omegaC)
         }
       } else if (node.type === 'CPE') {
         // Q = 1 / (R · ω_peak^n) from the CPE peak condition R·Q·ω_peak^n = 1
         if (!node.locked2) {
-          const estV2 = 0.85
-          node.value2 = Math.min(Math.max(estV2, node.min2 ?? 0.1), node.max2 ?? 1.0)
+          node.value2 = 0.85
         }
         if (!node.locked) {
-          const est = 1 / (Math.max(Rp, 1) * Math.pow(omegaC, node.value2))
-          node.value = Math.min(Math.max(est, node.min ?? 1e-20), node.max ?? 1e20)
+          node.value = 1 / (Math.max(Rp, 1) * Math.pow(omegaC, node.value2))
         }
       }
     }
@@ -319,6 +308,7 @@ export function useLMFitting(
     }
 
     isFitting.value = true
+    paramErrors.value = {}
 
     const optimizableNodes = collectNodes(rootNode.value).filter(n =>
       ['R', 'C', 'CPE', 'W', 'Wo', 'Ws', 'L'].includes(n.type),
@@ -346,20 +336,6 @@ export function useLMFitting(
       return
     }
 
-    const minValues = paramRefs.map(r => {
-      const node = r.node
-      if (r.param === 'value') return node.min ?? 1e-20
-      if (node.type === 'CPE') return Math.max(node.min2 ?? 0.1, 0.05)
-      return node.min2 ?? 1e-20
-    })
-
-    const maxValues = paramRefs.map(r => {
-      const node = r.node
-      if (r.param === 'value') return node.max ?? 1e20
-      if (node.type === 'CPE') return Math.min(node.max2 ?? 1.0, 1.0)
-      return node.max2 ?? 1e20
-    })
-
     const sorted = [...data].sort((a, b) => a['freq/Hz'] - b['freq/Hz'])
     const frequencies = sorted.map(d => d['freq/Hz'])
     const zReal = sorted.map(d => d['Re(Z)/Ohm'])
@@ -372,8 +348,6 @@ export function useLMFitting(
       frequencies,
       zReal,
       zImag,
-      minValues,
-      maxValues,
       paramRefs: paramRefs.map(r => ({ nodeId: r.node.id, param: r.param })),
     }
 
@@ -398,13 +372,13 @@ export function useLMFitting(
       if (response.type === 'error') throw new Error(response.message)
 
       // 1. Uppdatera alla parametrar med de fittade värdena
+      const errors: Record<string, number> = {}
       for (let i = 0; i < paramRefs.length; i++) {
         const ref = paramRefs[i]!
-        const node = ref.node
-        const minLim = ref.param === 'value' ? node.min : node.min2
-        const maxLim = ref.param === 'value' ? node.max : node.max2
-        ref.node[ref.param] = Math.min(Math.max(response.fittedValues[i] ?? 1e-3, minLim ?? 1e-20), maxLim ?? 1e20)
+        ref.node[ref.param] = response.fittedValues[i] ?? 1e-3
+        errors[`${ref.node.id}:${ref.param}`] = response.paramErrors[i] ?? 0
       }
+      paramErrors.value = errors
 
       // 2. Rita om grafen med de nya värdena
       onRedraw()
@@ -440,5 +414,5 @@ export function useLMFitting(
     }
   }
 
-  return { isFitting, estimateInitialValues, fitModel }
+  return { isFitting, paramErrors, estimateInitialValues, fitModel }
 }

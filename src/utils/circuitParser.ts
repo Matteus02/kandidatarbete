@@ -78,7 +78,6 @@ function buildTreeInternal(circuitString: string, pCounter: { n: number }): Circ
       const lowerStr = comma >= 0 ? inner.slice(comma + 1).trim() : ''
 
       const pNode = new CircuitNode(`p${pCounter.n++}`, 'parallel', 0)
-      pNode.applyDefaultLimits()
 
       // Each branch can itself be a series chain — recurse.
       const u = buildTreeInternal(upperStr, pCounter)
@@ -97,7 +96,6 @@ function buildTreeInternal(circuitString: string, pCounter: { n: number }): Circ
       const info = parseElementInfo(e)
       if (info) {
         const node = new CircuitNode(e, info.type, info.value, info.value2 ?? 1.0)
-        node.applyDefaultLimits()
         nodes.push(node)
       }
     }
@@ -110,7 +108,6 @@ function buildTreeInternal(circuitString: string, pCounter: { n: number }): Circ
   }
 
   const finalRoot = nodes[0] ?? new CircuitNode('R0', 'R', 100)
-  finalRoot.applyDefaultLimits()
   return finalRoot
 }
 

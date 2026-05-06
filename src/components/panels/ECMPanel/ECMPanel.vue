@@ -85,18 +85,13 @@ function onToggleLock(node: CircuitNode, paramIndex: 1 | 2) {
   renderVersion.value++
 }
 
-function onUpdateLimit(node: CircuitNode, limit: 'min' | 'max' | 'min2' | 'max2', value: number | null) {
-  node[limit] = value
-  renderVersion.value++
-}
-
 // ── Curve fitting ────────────────────────────────────────────────────────────
 
 function onRedraw() {
   renderVersion.value++
 }
 
-const { isFitting, estimateInitialValues, fitModel } = useLMFitting(
+const { isFitting, paramErrors, estimateInitialValues, fitModel } = useLMFitting(
   rootNode,
   () => props.eisData,
   collectNodes,
@@ -119,15 +114,19 @@ watch(
   () => props.localStore.aiSuggestedCircuit,
   (circuitStr) => {
     if (!circuitStr) return
-    rootNode.value     = buildTreeFromString(circuitStr)
+    rootNode.value = buildTreeFromString(circuitStr)
     aiAppliedCircuit.value = circuitStr
     resetCounters()
     renderVersion.value++
 
-
     // Reset the suggested circuit in the store so it can be re-applied
     // even if the user clicks the same one again after manual changes.
     props.localStore.setAiSuggestedCircuit(null)
+
+    if (props.eisData.length > 0) {
+      showModel.value = true
+      fitModel().then(() => fitModel())
+    }
   },
   { immediate: true },
 )
@@ -166,15 +165,12 @@ watch(
     <!-- Teleport the parameters and fit buttons to the sidebar (Always mounted) -->
     <Teleport :to="'#' + sidebarTargetId" v-if="isMounted">
       <BaseCard title="Circuit Parameters">
-        <div class="section-label" style="margin-top: 0;">
-          Parameters
-        </div>
         <ParameterEditor
           :nodes="editableNodes"
+          :param-errors="paramErrors"
           @change="onParamChange"
           @rename="onRename"
           @toggle-lock="onToggleLock"
-          @update-limit="onUpdateLimit"
         />
 
         <!-- Action buttons -->
@@ -191,6 +187,7 @@ watch(
             {{ isFitting ? 'Fitting…' : 'Fit Parameters (Auto)' }}
           </button>
           <span class="hint">Auto fits parameters using Levenberg Marquards algorithm</span>
+          <span class="hint">Click the lock icon to fix a parameter at its current value before fitting</span>
         </div>
       </BaseCard>
     </Teleport>
@@ -202,12 +199,6 @@ watch(
   padding-top: 10px;
 }
 
-.section-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #555;
-  margin: 14px 0 6px;
-}
 
 .sidebar-actions {
   display: flex;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, watch } from 'vue'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import type { EisDataPoint, LocalStore } from '@/types/eis'
 import { performKKTest } from '@/utils/kramersKronig'
@@ -42,28 +42,18 @@ const formatNum = (num: number) => {
   return num.toLocaleString(undefined, { maximumFractionDigits: 2 })
 }
 
-const isValidating = ref(false)
+watch(
+  () => props.dataPoints,
+  (dataPoints) => {
+    if (dataPoints.length === 0) return
+    const freqs = dataPoints.map(d => d['freq/Hz'])
+    const zReal = dataPoints.map(d => d['Re(Z)/Ohm'])
+    const zImag = dataPoints.map(d => d['-Im(Z)/Ohm'])
+    props.localStore.setKkResult(performKKTest(freqs, zReal, zImag))
+  },
+  { immediate: true },
+)
 
-function runValidation() {
-  if (props.dataPoints.length === 0) return
-
-  isValidating.value = true
-
-  // Small delay for UX feedback
-  setTimeout(() => {
-    const freqs = props.dataPoints.map(d => d['freq/Hz'])
-    const zReal = props.dataPoints.map(d => d['Re(Z)/Ohm'])
-    const zImag = props.dataPoints.map(d => d['-Im(Z)/Ohm'])
-
-    const result = performKKTest(freqs, zReal, zImag)
-    props.localStore.setKkResult(result)
-    isValidating.value = false
-  }, 400)
-}
-
-function getStatusClass(isConsistent: boolean) {
-  return isConsistent ? 'status-pass' : 'status-warn'
-}
 </script>
 
 <template>
@@ -110,24 +100,11 @@ function getStatusClass(isConsistent: boolean) {
 
         <div class="stat-divider">Kramers-Kronig Validation</div>
 
-        <div v-if="localStore.kkResult" class="kk-result">
-          <div class="kk-badge-row">
-            <span :class="['kk-status-badge', getStatusClass(localStore.kkResult.isConsistent)]">
-              {{ localStore.kkResult.isConsistent ? 'PASS' : 'WARNING' }}
-            </span>
-            <span class="kk-timestamp">{{ new Date(localStore.kkResult.testedAt).toLocaleTimeString() }}</span>
-          </div>
-          <p class="kk-message">{{ localStore.kkResult.message }}</p>
+        <div v-if="localStore.kkResult" class="stat-item">
+          <span class="label">Avg. phase deviation:</span>
+          <span class="value">{{ localStore.kkResult.rmse.toFixed(1) }}°</span>
         </div>
 
-        <button
-          class="kk-btn"
-          :disabled="isValidating"
-          @click="runValidation"
-        >
-          <span v-if="isValidating">Evaluating...</span>
-          <span v-else>{{ localStore.kkResult ? 'Re-run Validation' : 'Run KK Validation' }}</span>
-        </button>
       </div>
     </div>
   </BaseCard>
@@ -207,64 +184,6 @@ function getStatusClass(isConsistent: boolean) {
   margin-bottom: 4px;
 }
 
-.kk-btn {
-  width: 100%;
-  margin-top: 4px;
-  padding: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  background: white;
-  border: 1px solid #007bff;
-  color: #007bff;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
 
-.kk-btn:hover:not(:disabled) {
-  background: #f0f7ff;
-}
 
-.kk-btn:disabled {
-  opacity: 0.6;
-  cursor: wait;
-}
-
-.kk-result {
-  background: #fcfcfc;
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
-  padding: 10px;
-  margin-bottom: 4px;
-}
-
-.kk-badge-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.kk-status-badge {
-  font-size: 10px;
-  font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 3px;
-  color: white;
-}
-
-.status-pass { background-color: #28a745; }
-.status-warn { background-color: #f39c12; }
-
-.kk-timestamp {
-  font-size: 10px;
-  color: #aaa;
-}
-
-.kk-message {
-  font-size: 12px;
-  line-height: 1.4;
-  margin: 0;
-  color: #444;
-}
 </style>
