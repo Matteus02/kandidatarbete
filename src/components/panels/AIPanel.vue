@@ -69,7 +69,6 @@ function runDetection(): void {
 
 function handleApply(circuit: string): void {
   emit('apply-circuit', circuit)
-  showSuggestions.value = false
 }
 </script>
 

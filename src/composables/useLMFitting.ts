@@ -304,6 +304,9 @@ export function useLMFitting(
 
     assignNode(rootNode.value)
     onRedraw()
+    
+
+    fitModel()
   }
 
   // ── Levenberg-Marquardt Curve Fitting (Web Worker) ───────────────────────
