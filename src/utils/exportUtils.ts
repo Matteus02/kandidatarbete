@@ -18,9 +18,8 @@ export function downloadFile(filename: string, content: string, mimeType: string
  * Formats circuit parameters into a CSV string.
  */
 export function exportParametersToCSV(nodes: CircuitNode[], circuitString: string): string {
-  const headers = ['Element ID', 'Type', 'Value', 'Unit', 'Locked', 'Min', 'Max']
+  const headers = ['Element ID', 'Type', 'Value', 'Unit', 'Locked']
   const rows = nodes.map(n => {
-    // Basic units mapping
     const units: Record<string, string> = { R:'Ohm', C:'F', L:'H', CPE:'Q', W:'W', Wo:'Rw', Ws:'Rw' }
     const mainRow = [
       n.id,
@@ -28,11 +27,8 @@ export function exportParametersToCSV(nodes: CircuitNode[], circuitString: strin
       n.value,
       units[n.type] || '',
       n.locked ? 'Yes' : 'No',
-      n.min ?? '',
-      n.max ?? ''
     ].join(',')
 
-    // For 2-param elements, add a second row
     if (n.type === 'CPE' || n.type === 'Wo' || n.type === 'Ws') {
       const units2: Record<string, string> = { CPE:'n', Wo:'tau', Ws:'tau' }
       const secRow = [
@@ -41,8 +37,6 @@ export function exportParametersToCSV(nodes: CircuitNode[], circuitString: strin
         n.value2,
         units2[n.type] || '',
         n.locked2 ? 'Yes' : 'No',
-        n.min2 ?? '',
-        n.max2 ?? ''
       ].join(',')
       return `${mainRow}\n${secRow}`
     }

@@ -11,8 +11,6 @@ export interface FitCircuitOptions {
   zImag: number[]
   modelFn: CircuitModelFn
   initialParams: number[]
-  minValues?: number[]
-  maxValues?: number[]
 }
 
 export interface FitCircuitResult {
@@ -60,17 +58,10 @@ export function createFlatteningWrapper(
   modelFn: CircuitModelFn,
   omegas: number[],
   weights: number[],
-  minValues: number[],
-  maxValues: number[],
 ) {
   const n = omegas.length
   return (logParams: number[]) => {
-    const params = logParams.map((lp, i) => {
-      const p = Math.exp(lp)
-      const min = minValues[i] ?? 1e-20
-      const max = maxValues[i] ?? 1e20
-      return Math.min(Math.max(p, min), max)
-    })
+    const params = logParams.map(lp => Math.exp(lp))
     const complexZ = modelFn(params, omegas)
     const flat = flattenComplex(complexZ)
     return (xIndex: number): number => {
@@ -130,20 +121,10 @@ export function fitCircuit(options: FitCircuitOptions): FitCircuitResult {
   const xIndices = Array.from({ length: 2 * n }, (_, i) => i)
 
   const logInitial = initialParams.map(p => Math.log(Math.max(p, 1e-20)))
-  const logMin = (options.minValues ?? initialParams.map(() => 1e-20)).map(v =>
-    Math.log(Math.max(v, 1e-20)),
-  )
-  const logMax = (options.maxValues ?? initialParams.map(() => 1e20)).map(v =>
-    Math.log(Math.max(v, 1e-20)),
-  )
+  const logMin = logInitial.map(() => Math.log(1e-20))
+  const logMax = logInitial.map(() => Math.log(1e20))
 
-  const wrappedFn = createFlatteningWrapper(
-    modelFn,
-    omegas,
-    weights,
-    options.minValues ?? initialParams.map(() => 1e-20),
-    options.maxValues ?? initialParams.map(() => 1e20),
-  )
+  const wrappedFn = createFlatteningWrapper(modelFn, omegas, weights)
 
   let result
   let attempts = 0

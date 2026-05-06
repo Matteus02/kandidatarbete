@@ -85,18 +85,13 @@ function onToggleLock(node: CircuitNode, paramIndex: 1 | 2) {
   renderVersion.value++
 }
 
-function onUpdateLimit(node: CircuitNode, limit: 'min' | 'max' | 'min2' | 'max2', value: number | null) {
-  node[limit] = value
-  renderVersion.value++
-}
-
 // ── Curve fitting ────────────────────────────────────────────────────────────
 
 function onRedraw() {
   renderVersion.value++
 }
 
-const { isFitting, estimateInitialValues, fitModel } = useLMFitting(
+const { isFitting, paramErrors, estimateInitialValues, fitModel } = useLMFitting(
   rootNode,
   () => props.eisData,
   collectNodes,
@@ -165,15 +160,12 @@ watch(
     <!-- Teleport the parameters and fit buttons to the sidebar (Always mounted) -->
     <Teleport :to="'#' + sidebarTargetId" v-if="isMounted">
       <BaseCard title="Circuit Parameters">
-        <div class="section-label" style="margin-top: 0;">
-          Parameters
-        </div>
         <ParameterEditor
           :nodes="editableNodes"
+          :param-errors="paramErrors"
           @change="onParamChange"
           @rename="onRename"
           @toggle-lock="onToggleLock"
-          @update-limit="onUpdateLimit"
         />
 
         <!-- Action buttons -->
@@ -205,12 +197,6 @@ watch(
   padding-top: 10px;
 }
 
-.section-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #555;
-  margin: 14px 0 6px;
-}
 
 .sidebar-actions {
   display: flex;

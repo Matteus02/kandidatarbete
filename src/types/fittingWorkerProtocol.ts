@@ -12,10 +12,6 @@ export interface SerializedNode {
   lowerBranchId: string | null
   locked: boolean
   locked2: boolean
-  min: number | null
-  max: number | null
-  min2: number | null
-  max2: number | null
 }
 
 export interface FittingRequest {
@@ -25,11 +21,9 @@ export interface FittingRequest {
   frequencies: number[]
   zReal: number[]
   zImag: number[]
-  minValues: number[]
-  maxValues: number[]
   paramRefs: Array<{ nodeId: string; param: 'value' | 'value2' }>
 }
 
 export type FittingResponse =
-  | { type: 'result'; fittedValues: number[]; chiSquared: number; iterations: number }
+  | { type: 'result'; fittedValues: number[]; paramErrors: number[]; chiSquared: number; iterations: number }
   | { type: 'error'; message: string }

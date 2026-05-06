@@ -1,22 +1,20 @@
 <script setup lang="ts">
 // Renders a vertical list of labeled number inputs for each circuit element's parameters.
-//
-// This row-based layout provides horizontal space for future features, such as
-// min/max boundary inputs and lock toggles for parameter fitting.
-//
 // When the user changes a value this component emits a 'change' event instead of
 // modifying the node directly, keeping the data-flow unidirectional.
 
 import { ref } from 'vue'
 import type { CircuitNode, ElementType } from '@/utils/CircuitNode'
 
-defineProps<{ nodes: CircuitNode[] }>()
+defineProps<{
+  nodes: CircuitNode[]
+  paramErrors?: Record<string, number>
+}>()
 
 const emit = defineEmits<{
   change: [node: CircuitNode, param: 'value' | 'value2', value: number],
   rename: [node: CircuitNode, newId: string],
   toggleLock: [node: CircuitNode, paramIndex: 1 | 2],
-  updateLimit: [node: CircuitNode, limit: 'min' | 'max' | 'min2' | 'max2', value: number | null]
 }>()
 
 // Units shown next to each element label in the parameter list
@@ -60,21 +58,28 @@ function onInput(node: CircuitNode, param: 'value' | 'value2', raw: string) {
   if (!isNaN(parsed)) emit('change', node, param, parsed)
 }
 
-function onLimitInput(node: CircuitNode, limit: 'min' | 'max' | 'min2' | 'max2', raw: string) {
-  const parsed = parseFloat(raw.trim())
-  emit('updateLimit', node, limit, isNaN(parsed) ? null : parsed)
-}
-
 function fmt(v: number | undefined | null): string {
   if (v == null || isNaN(v)) return ''
   const abs = Math.abs(v)
   if (abs !== 0 && (abs < 0.01 || abs >= 1e6)) return v.toExponential(3)
   return parseFloat(v.toPrecision(4)).toString()
 }
+
+function fmtError(value: number | undefined, error: number | undefined): string {
+  if (value == null || error == null || isNaN(value) || isNaN(error) || error <= 0 || value === 0) return ''
+  const pct = (error / Math.abs(value)) * 100
+  return '± ' + pct.toFixed(2) + ' %'
+}
 </script>
 
 <template>
   <div class="param-editor-scroll">
+    <div class="param-list-header">
+      <span class="col-header col-header--lock"></span>
+      <span class="col-header col-header--param">Parameter</span>
+      <span class="col-header col-header--value">Value</span>
+      <span class="col-header col-header--error">Error %</span>
+    </div>
     <div class="param-list">
       <template v-for="node in nodes" :key="node.id">
         <!-- Row for the first parameter -->
@@ -115,30 +120,8 @@ function fmt(v: number | undefined | null): string {
               />
             </div>
 
-            <div class="constraints-group" :class="{ 'constraints-group--disabled': node.locked }">
-              <div class="limit-box">
-                <span class="limit-label">Min</span>
-                <input
-                  class="param-input lim-input"
-                  type="text"
-                  placeholder="-"
-                  :value="fmt(node.min)"
-                  :disabled="node.locked"
-                  @change="(e) => onLimitInput(node, 'min', (e.target as HTMLInputElement).value)"
-                />
-              </div>
-              <div class="limit-box">
-                <span class="limit-label">Max</span>
-                <input
-                  class="param-input lim-input"
-                  type="text"
-                  placeholder="-"
-                  :value="fmt(node.max)"
-                  :disabled="node.locked"
-                  @change="(e) => onLimitInput(node, 'max', (e.target as HTMLInputElement).value)"
-                />
-              </div>
-            </div>
+            <span class="param-error">{{ fmtError(node.value, paramErrors?.[`${node.id}:value`]) }}</span>
+
           </div>
 
           <!-- Optional second row for two-parameter elements (CPE, Wo, Ws) -->
@@ -169,30 +152,8 @@ function fmt(v: number | undefined | null): string {
                 @change="(e) => onInput(node, 'value2', (e.target as HTMLInputElement).value)"
               />
             </div>
-            <div class="constraints-group" :class="{ 'constraints-group--disabled': node.locked2 }">
-              <div class="limit-box">
-                <span class="limit-label">Min</span>
-                <input
-                  class="param-input lim-input"
-                  type="text"
-                  placeholder="-"
-                  :value="fmt(node.min2)"
-                  :disabled="node.locked2"
-                  @change="(e) => onLimitInput(node, 'min2', (e.target as HTMLInputElement).value)"
-                />
-              </div>
-              <div class="limit-box">
-                <span class="limit-label">Max</span>
-                <input
-                  class="param-input lim-input"
-                  type="text"
-                  placeholder="-"
-                  :value="fmt(node.max2)"
-                  :disabled="node.locked2"
-                  @change="(e) => onLimitInput(node, 'max2', (e.target as HTMLInputElement).value)"
-                />
-              </div>
-            </div>
+
+            <span class="param-error">{{ fmtError(node.value2, paramErrors?.[`${node.id}:value2`]) }}</span>
           </div>
         </div>
       </template>
@@ -222,6 +183,30 @@ const vFocus = {
   background: #cbd5e1;
   border-radius: 4px;
 }
+
+.param-list-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.col-header {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.col-header--lock  { width: 24px; }
+.col-header--param { width: 95px; }
+.col-header--value { width: 75px; text-align: left; }
+.col-header--error { min-width: 80px; text-align: left; }
 
 .param-list {
   display: flex;
@@ -375,42 +360,11 @@ const vFocus = {
   border-color: #e2e8f0;
 }
 
-.constraints-group {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  padding-left: 12px;
-  border-left: 1px solid #e2e8f0;
-  flex-shrink: 0;
-}
-
-.constraints-group--disabled {
-  opacity: 0.5;
-}
-
-.limit-box {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  width: 100%;
-}
-
-.limit-label {
-  font-size: 9px;
-  font-weight: 700;
+.param-error {
+  font-size: 10px;
+  font-family: monospace;
   color: #94a3b8;
-  text-transform: uppercase;
-  width: 24px;
-  text-align: right;
-}
-
-.lim-input {
-  width: 70px;
-  background: #f8fafc;
-  color: #475569;
-  padding: 2px 4px;
-  font-size: 11px;
+  white-space: nowrap;
+  min-width: 80px;
 }
 </style>

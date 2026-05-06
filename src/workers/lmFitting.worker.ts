@@ -12,10 +12,6 @@ function deserializeNodes(nodes: SerializedNode[], rootId: string): CircuitNode 
     const node = new CircuitNode(s.id, s.type, s.value, s.value2)
     node.locked = s.locked
     node.locked2 = s.locked2
-    node.min = s.min
-    node.max = s.max
-    node.min2 = s.min2
-    node.max2 = s.max2
     map.set(s.id, node)
   }
 
@@ -53,9 +49,7 @@ self.onmessage = (event: MessageEvent<FittingRequest>) => {
       for (let i = 0; i < req.paramRefs.length; i++) {
         const ref = req.paramRefs[i]!
         const node = nodeMap.get(ref.nodeId)!
-        const minLim = ref.param === 'value' ? node.min : node.min2
-        const maxLim = ref.param === 'value' ? node.max : node.max2
-        node[ref.param] = Math.min(Math.max(params[i] ?? 1e-3, minLim ?? 1e-20), maxLim ?? 1e20)
+        node[ref.param] = params[i] ?? 1e-3
       }
       return omegas.map(omega => zOfChain(root, omega))
     }
@@ -72,13 +66,12 @@ self.onmessage = (event: MessageEvent<FittingRequest>) => {
       zImag: req.zImag,
       modelFn,
       initialParams,
-      minValues: req.minValues,
-      maxValues: req.maxValues,
     })
 
     const response: FittingResponse = {
       type: 'result',
       fittedValues: result.params,
+      paramErrors: result.paramErrors,
       chiSquared: result.chiSquared,
       iterations: result.iterations,
     }
