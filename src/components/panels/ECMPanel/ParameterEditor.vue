@@ -171,7 +171,6 @@ const vFocus = {
 
 <style scoped>
 .param-editor {
-  /* Pull the header and rows flush against the BaseCard edges, including the top */
   margin: -24px -24px 0;
 }
 
