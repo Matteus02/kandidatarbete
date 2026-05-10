@@ -185,7 +185,7 @@ export function useLMFitting(
       assignNode(node.next) // vidare till nästa!
     }
 
-    // hjälpfunk för att sätta värden inne i ett grenat (parallellt) block
+    // hjälpfunk för att sätta värden inne i ett parallellt block
     function assignBranch(node: CircuitNode | null, Rp: number, omegaC: number) {
       if (!node || node.type === 'end') return
       switch (node.type) {
@@ -245,7 +245,7 @@ export function useLMFitting(
     fitModel()
   }
 
-  // Huvudfunktionen som skickar datan till workern för att optimera (fit) modellen
+  // Huvudfunktionen som skickar datan till workern för att optimera modellen
   async function fitModel() {
     const data = getEisData()
     if (data.length === 0) {

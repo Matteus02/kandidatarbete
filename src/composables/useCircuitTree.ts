@@ -1,22 +1,21 @@
-// Vue composable that owns all circuit tree state and mutations.
+// Det här är huvud-filen för hela krets-trädet.
+// Hela kretsen är sparad som en länkad lista av CircuitNode-objekt:
 //
-// The circuit is stored as a linked-list tree of CircuitNode objects:
-//   - .next / .earlier  link nodes in series
-//   - .upperBranch / .lowerBranch  define the two arms of a parallel block
-//
-// This composable is the single source of truth for the tree. All structural
-// changes (drag-drop, delete) go through its functions so the rest of the UI
-// only needs to react to rootNode and renderVersion.
+// Den här koden är "single source of truth" för trädet. Allt som händer
+// (typ drag and drop, ta bort grejer) går igenom funktionerna här så att
+// resten av UI:t bara behöver lyssna på rootNode och renderVersion.
 
 import { ref } from 'vue'
 import { CircuitNode, type ElementType } from '@/utils/CircuitNode'
 
-// Default first parameter when a new element is dragged onto the canvas.
+// Standardvärden för första parametern när man drar in ett nytt element på canvasen.
+// R = 100 ohm osv.
 const ELEMENT_DEFAULTS: Partial<Record<ElementType, number>> = {
   R: 100, C: 1e-6, CPE: 1e-5, W: 100, Wo: 100, Ws: 100, L: 1e-6,
 }
 
-// Default second parameter for two-param elements: n for CPE, τ for Wo/Ws.
+// Standardvärde för andra parametern (för element som behöver två).
+// Till exempel 'n' för CPE, eller 'tau' (tidskonstant) för Wo och Ws.
 const ELEMENT_DEFAULTS2: Partial<Record<ElementType, number>> = {
   CPE: 0.85,
   Wo: 1.0,
@@ -24,16 +23,16 @@ const ELEMENT_DEFAULTS2: Partial<Record<ElementType, number>> = {
 }
 
 export function useCircuitTree() {
-  // The root of the circuit tree. Changing this ref triggers a full re-render.
+  // Rot-noden för kretsen. Ändrar vi den här ref:en så ritas allt om.
+  // Vi startar alltid med ett R-element på 100 ohm.
   const initialRoot = new CircuitNode('R0', 'R', 100)
   const rootNode = ref<CircuitNode>(initialRoot)
 
-  // Incremented after every structural change so the SVG can use :key to re-render.
+  // En räknare vi plussar på varje gång strukturen ändras.
   const renderVersion = ref(0)
 
-  // Per-type ID counters ensure every node has a unique label (R0, R1, CPE0 …)
-  // Each element type has its own independent counter so IDs are always
-  // predictable: W0, Wo0, Ws0, L0 are all separate sequences.
+  // Räknare för varje typ av element så att alla får ett unikt ID (typ R0, R1, CPE0 osv).
+  // Varje element har sin egen kö så ID:na alltid är logiska (W0, Wo0, L0 är separata grejer).
   const counters = { R: 1, C: 0, CPE: 0, W: 0, Wo: 0, Ws: 0, L: 0, P: 1 }
 
   function nextId(type: ElementType): string {
@@ -50,14 +49,14 @@ export function useCircuitTree() {
     }
   }
 
-  // Scan the loaded tree and set each counter to (highest existing numeric suffix + 1)
-  // so newly-added elements never collide with AI-loaded node IDs.
+  // Går igenom hela trädet och uppdaterar räknarna till (högsta siffran som redan finns + 1).
+  // så att nya element vi lägger till inte råkar få samma ID som noder AI:t (eller en sparad fil)
+  // redan har laddat in.
   function resetCounters() {
     counters.R = 0; counters.C = 0; counters.CPE = 0
     counters.W = 0; counters.Wo = 0; counters.Ws = 0
     counters.L = 0; counters.P = 0
 
-    // We need a traversal that includes parallel nodes to reset the P counter
     const visited = new Set<string>()
     function walk(node: CircuitNode | null) {
       if (!node || visited.has(node.id)) return
@@ -68,7 +67,6 @@ export function useCircuitTree() {
         const prefix = match[1]
         const num    = parseInt(match[2], 10) + 1
 
-        // Handle both uppercase 'P' in counters and potential lowercase 'p' in IDs
         const key = prefix.toUpperCase() === 'P' ? 'P' : prefix as keyof typeof counters
         if (key in counters && num > counters[key]) {
           counters[key] = num
@@ -83,10 +81,9 @@ export function useCircuitTree() {
     walk(rootNode.value)
   }
 
-  // ── Tree traversal ────────────────────────────────────────────────────────
-
-  // Returns all nodes that have editable parameters (skips 'parallel' and 'end').
-  // Used by the parameter editor and the fitting algorithm.
+  // Loopa genom trädet
+  // Samlar ihop alla noder som faktiskt har parametrar man kan ändra
+  // Används av parameter-editorn och när vi kör själva fittningen.
   function collectNodes(node: CircuitNode | null, acc: CircuitNode[] = []): CircuitNode[] {
     if (!node || node.type === 'end') return acc
     if (node.type !== 'parallel') acc.push(node)
@@ -96,13 +93,7 @@ export function useCircuitTree() {
     return acc
   }
 
-  // ── Tree mutations ────────────────────────────────────────────────────────
-
-  // Called when the user drops an element onto an existing node.
-  // action:
-  //   'before'  — insert the new node immediately before the target
-  //   'replace' — swap the target node out for the new one
-  //   'after'   — insert the new node immediately after the target
+  // Körs när man droppar ett element på en befintlig nod på skärmen.
   function handleNodeDrop(
     targetNode: CircuitNode,
     newType: ElementType,
@@ -132,7 +123,7 @@ export function useCircuitTree() {
       else                                                     targetNode.earlier?.setNext(newNode)
       targetNode.next?.setEarlier(newNode)
 
-    } else { // 'after'
+    } else {
       const oldNext = targetNode.next
       targetNode.setNext(newNode)
       newNode.setEarlier(targetNode)
@@ -142,7 +133,7 @@ export function useCircuitTree() {
     renderVersion.value++
   }
 
-  // Called when the user drops an element into an empty branch slot of a parallel node.
+  // Körs om man droppar ett element i en tom lucka i ett parallellt block (övre eller undre grenen).
   function insertIntoEmptyBranch(parentNode: CircuitNode, branch: 'upper' | 'lower', newType: string) {
     const type    = newType as ElementType
     const newNode = new CircuitNode(
@@ -157,10 +148,11 @@ export function useCircuitTree() {
     renderVersion.value++
   }
 
-  // Called when the user clicks a node to remove it from the tree.
+  // Trillar in här när man klickar för att ta bort en nod.
   function deleteNode(node: CircuitNode) {
     if (node === rootNode.value) {
-      // Deleting the root: promote the next node (or reset to a single R)
+      // Om vi tar bort själva rot-noden: lyft upp nästa nod i kedjan så den blir root.
+      // Finns ingen nästa nod skapar vi bara ett nytt standard R-element.
       const next = node.next ?? new CircuitNode('R0', 'R', 100)
       next.earlier = null
       rootNode.value = next
@@ -171,19 +163,17 @@ export function useCircuitTree() {
   }
 
   function morphNode(node: CircuitNode, newType: ElementType) {
-  // 1. Generera ett nytt ID (t.ex. CPE0 blir W1)
-  node.id = nextId(newType);
-  node.type = newType;
+    // 1. Ge den ett nytt ID direkt (så t.ex. CPE0 blir W1 istället)
+    node.id = nextId(newType);
+    node.type = newType;
 
-  // 2. Anpassa parametrar
-  // Om vi går från CPE till W, behåller vi 'value' (Q blir A)
-  // Om vi går till Wo/Ws behöver vi se till att value2 (tau) finns
-  if ((newType === 'Wo' || newType === 'Ws') && node.value2 === undefined) {
-    node.value2 = 1.0; // Standardvärde för tidskonstant
+    // 2. Fixa till parametrarna så det inte kraschar
+    if ((newType === 'Wo' || newType === 'Ws') && node.value2 === undefined) {
+      node.value2 = 1.0; // Sätter standardvärdet för tidskonstanten till 1
+    }
+
+    renderVersion.value++;
   }
-
-  renderVersion.value++;
-}
 
   return {
     rootNode,
