@@ -4,6 +4,7 @@ import type { CircuitNode, ElementType } from '@/utils/CircuitNode'
 import type { EisDataPoint } from '@/types/eis'
 import FittingWorker from '@/workers/lmFitting.worker.ts?worker'
 import type { FittingRequest, FittingResponse, SerializedNode } from '@/types/fittingWorkerProtocol'
+import { detectArcPeaks, estimateWarburgA, rFromPeak } from '@/utils/heuristics'
 
 type CollectFn = (node: CircuitNode | null) => CircuitNode[]
 
@@ -68,90 +69,30 @@ export function useLMFitting(
     // Sort high→low frequency (standard EIS presentation order)
     const sorted = [...data].sort((a, b) => b['freq/Hz'] - a['freq/Hz'])
     const reZ  = sorted.map(d => d['Re(Z)/Ohm'])
-    const imZ  = sorted.map(d => d['-Im(Z)/Ohm'])  // positive = capacitive (EIS convention)
+    const imZ  = sorted.map(d => d['-Im(Z)/Ohm'])
     const freq = sorted.map(d => d['freq/Hz'])
     const N    = sorted.length
 
     // ── 1. Series resistance ─────────────────────────────────────────────
-    // Re(Z) at highest frequency: CPE/C are nearly short-circuits at high ω,
-    // so only the ohmic series resistance contributes.
     const Rs    = Math.max(reZ[0] ?? 1, 1)
     const ReMax = Math.max(...reZ)
 
     // ── 2. Detect individual RC arcs ─────────────────────────────────────
-    // Each parallel R-(C|CPE) block produces one peak in -Im(Z).
-    // Light 3-point smoothing suppresses noise before peak detection.
-    const smoothed: number[] = imZ.map((_, i) => {
-      const lo = Math.max(0, i - 1)
-      const hi = Math.min(N - 1, i + 1)
-      let s = 0
-      for (let k = lo; k <= hi; k++) s += imZ[k]!
-      return s / (hi - lo + 1)
-    })
-    const globalMaxIm = Math.max(...smoothed, 1e-30)
-    const minProm     = globalMaxIm * 0.05   // ignore spikes < 5 % of the tallest arc
-
-    const arcPeaks: { f: number; imPeak: number }[] = []
-    for (let i = 1; i < N - 1; i++) {
-      const v = smoothed[i]!
-      if (v > smoothed[i - 1]! && v >= smoothed[i + 1]! && v >= minProm) {
-        arcPeaks.push({ f: freq[i]!, imPeak: imZ[i]! })
-      }
-    }
-    // Fallback: no local max found (e.g. monotone data) — use global maximum
-    if (arcPeaks.length === 0) {
-      const idx = smoothed.indexOf(globalMaxIm)
-      arcPeaks.push({ f: freq[idx] ?? 1, imPeak: Math.max(imZ[idx] ?? 1, 1) })
-    }
-    // arcPeaks is already ordered high→low frequency because the input is sorted that way.
+    const arcPeaks = detectArcPeaks(sorted)
 
     // ── 3. Warburg coefficient from low-frequency 45° tail ───────────────
-    // For a semi-infinite Warburg: -Im(Z_W) = A/√(2ω) = (A/√2)·(1/√ω)
-    // Regress imZ vs 1/√ω over the lowest-frequency points; slope = A/√2.
-    const nLow  = Math.max(3, Math.min(7, Math.floor(N / 4)))
-    const lowPts = sorted.slice(N - nLow)
-    let warburgA = Math.max((ReMax - Rs) * Math.sqrt(2 * Math.PI * (freq[N - 1] ?? 0.01)), 1)
-    if (lowPts.length >= 2) {
-      let sumX = 0, sumY = 0, sumXX = 0, sumXY = 0
-      for (const d of lowPts) {
-        const x = 1 / Math.sqrt(2 * Math.PI * Math.max(d['freq/Hz'], 1e-10))
-        const y = d['-Im(Z)/Ohm']
-        sumX  += x;  sumY  += y
-        sumXX += x * x;  sumXY += x * y
-      }
-      const nL  = lowPts.length
-      const det = nL * sumXX - sumX * sumX
-      if (det > 1e-30) {
-        const slope = (nL * sumXY - sumX * sumY) / det   // slope = A / √2
-        warburgA = Math.max(slope * Math.SQRT2, 1)
-      }
-    }
+    const warburgA = estimateWarburgA(sorted, Rs)
 
     // ── 4. Walk the circuit tree and assign ──────────────────────────────
-    // arcIdx tracks which detected peak is assigned to the next parallel block
-    // (high-frequency arc → first parallel block, etc.).
     let arcIdx     = 0
     let seriesRIdx = 0
 
-    // Count parallel blocks so we can divide the impedance span evenly
-    // when there are fewer detected peaks than parallel blocks.
     function countParallelBlocks(node: CircuitNode | null): number {
       if (!node || node.type === 'end') return 0
       return (node.type === 'parallel' ? 1 : 0) + countParallelBlocks(node.next)
     }
     const numParallelBlocks = Math.max(countParallelBlocks(rootNode.value), 1)
 
-    // For a parallel R-CPE arc the peak condition gives R·Q·ωp^n = 1, so:
-    //   Q = 1 / (R · ωp^n)
-    // The -Im(Z) amplitude at the peak equals R/2 · tan(n·π/4), so:
-    //   R = 2 · Im_peak / tan(n·π/4)
-    // For n = 1 (capacitor) this reduces to R = 2 · Im_peak, the standard result.
-    function rFromPeak(imPeak: number, n: number): number {
-      const t = Math.tan((n * Math.PI) / 4)
-      return Math.max((2 * imPeak) / (t > 0 ? t : 1), 1)
-    }
-
-    // Walk a chain (following .next) and return the first C or CPE node found, or null.
     function findCapInChain(node: CircuitNode | null): CircuitNode | null {
       if (!node || node.type === 'end') return null
       if (node.type === 'C' || node.type === 'CPE') return node
@@ -166,7 +107,6 @@ export function useLMFitting(
           if (!node.locked) {
             const est = seriesRIdx === 0
               ? Rs
-              // Inner series R: use a small fraction of the total Re span as a safe seed
               : Math.max((ReMax - Rs) * 0.05, 1)
             node.value = est
           }
@@ -175,15 +115,10 @@ export function useLMFitting(
         }
 
         case 'parallel': {
-          // Consume the next highest-frequency arc peak for this parallel block.
-          // If we have fewer detected peaks than parallel blocks, divide the total
-          // impedance span evenly so each block doesn't get the full arc amplitude.
           const arc    = arcPeaks[arcIdx] ?? arcPeaks[arcPeaks.length - 1] ?? { f: 1, imPeak: (ReMax - Rs) / 2 }
           const fallbackScale = arcIdx >= arcPeaks.length ? 1 / numParallelBlocks : 1
           arcIdx++
           const omegaC = 2 * Math.PI * arc.f
-          // Determine n from whichever capacitive element sits in either branch,
-          // then compute one shared R_p so R and C/CPE stay self-consistent.
           const capNode = findCapInChain(node.upperBranch) ?? findCapInChain(node.lowerBranch)
           const nEst = capNode?.type === 'CPE' ? 0.85 : 1
           const Rp   = rFromPeak(arc.imPeak, nEst) * fallbackScale
@@ -194,7 +129,6 @@ export function useLMFitting(
 
         case 'C':
         case 'CPE': {
-          // Lone capacitive element outside a parallel block
           const arc    = arcPeaks[arcIdx] ?? arcPeaks[arcPeaks.length - 1] ?? { f: 1, imPeak: 10 }
           arcIdx++
           const Rp     = rFromPeak(arc.imPeak, node.type === 'CPE' ? 0.85 : 1)
@@ -236,8 +170,6 @@ export function useLMFitting(
       assignNode(node.next)
     }
 
-    // Assign a single element inside a parallel branch.
-    // Rp = parallel resistance for this arc, omegaC = arc's characteristic frequency.
     function assignBranch(node: CircuitNode | null, Rp: number, omegaC: number) {
       if (!node || node.type === 'end') return
       switch (node.type) {
@@ -270,18 +202,15 @@ export function useLMFitting(
           }
           break
       }
-      // Follow a chain within the branch (handles nested series elements inside a branch)
       if (node.next) assignBranch(node.next, Rp, omegaC)
     }
 
     function assignCapacitive(node: CircuitNode, Rp: number, omegaC: number) {
       if (node.type === 'C') {
-        // C = 1 / (R · ω_peak) from the peak condition ω_peak · R · C = 1
         if (!node.locked) {
           node.value = 1 / (Math.max(Rp, 1) * omegaC)
         }
       } else if (node.type === 'CPE') {
-        // Q = 1 / (R · ω_peak^n) from the CPE peak condition R·Q·ω_peak^n = 1
         if (!node.locked2) {
           node.value2 = 0.85
         }
