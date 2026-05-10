@@ -5,7 +5,7 @@ import type { EisDataPoint, LocalStore } from '@/types/eis'
 import type { InferenceRequest, InferenceResponse } from '@/types/workerProtocol'
 import InferenceWorker from '@/workers/eisInference.worker.ts?worker'
 
-const props = defineProps<{ 
+const props = defineProps<{
   eisData: EisDataPoint[]
   localStore: LocalStore
 }>()
@@ -89,9 +89,9 @@ function handleApply(circuit: string): void {
           <span class="spinner-dot" />
         </span>
 
-        <button 
-          v-if="predictions.length > 0 && !isLoading" 
-          class="ai-btn-toggle" 
+        <button
+          v-if="predictions.length > 0 && !isLoading"
+          class="ai-btn-toggle"
           @click="showSuggestions = !showSuggestions"
         >
           {{ showSuggestions ? 'Hide Suggestions' : `Show ${predictions.length} Suggestions` }}
@@ -209,7 +209,6 @@ function handleApply(circuit: string): void {
   padding-right: 4px;
 }
 
-/* Custom scrollbar for predictions */
 .ai-results::-webkit-scrollbar {
   width: 4px;
 }
