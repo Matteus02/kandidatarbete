@@ -1,7 +1,8 @@
 import type { ElementType } from '@/utils/CircuitNode'
 
-// JSON-serializable snapshot of one CircuitNode.
-// Pointer fields are stored as string IDs so the worker can reconstruct the tree.
+// Sköter kommunikationen mellan main thread och worker för LM-fittning (datatyper).
+
+//JSON represenation av CircuitNode, där referenser till andra noder är via ID:n. pga worker kan inte komma åt referenser direkt.
 export interface SerializedNode {
   id: string
   type: ElementType
@@ -14,6 +15,7 @@ export interface SerializedNode {
   locked2: boolean
 }
 
+// Meddelande som main skickar till worker, innehåller serialiserade noder och mätdata.
 export interface FittingRequest {
   type: 'fit'
   nodes: SerializedNode[]
@@ -24,6 +26,7 @@ export interface FittingRequest {
   paramRefs: Array<{ nodeId: string; param: 'value' | 'value2' }>
 }
 
+//Svar från worker till main (antingen resultat av fittning eller ett felmeddelande)
 export type FittingResponse =
   | { type: 'result'; fittedValues: number[]; paramErrors: number[]; chiSquared: number; iterations: number }
   | { type: 'error'; message: string }

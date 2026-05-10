@@ -1,11 +1,6 @@
-/**
- * Formula:
- *   Real Residual = (Z'_meas - Z'_mod) / |Z_meas| * 100
- *   Imaginary Residual = (Z''_meas - Z''_mod) / |Z_meas| * 100
- *
- * Normalizing by the modulus ensures that errors are relative to the
- * impedance magnitude at that frequency, which is standard in EIS analysis.
- */
+
+// Beräknar residualer i procent av mätvärdets storlek: både real- och imaginärdel. Används för att plotta residualer i Bode-plot.
+
 export function calculateResiduals(
   measRe: number[],
   measIm: number[],
@@ -30,7 +25,7 @@ export function calculateResiduals(
     const modulus = Math.sqrt(rMeas * rMeas + iMeas * iMeas)
     const norm = modulus > 1e-12 ? modulus : 1e-12
 
-    // Percentage residual normalized by modulus
+    // procentuella residualer, vägt med mätvärdets storlek för att undvika att små värden dominerar.
     resRe.push(((rMeas - rMod) / norm) * 100)
     resIm.push(((iMeas - iMod) / norm) * 100)
   }

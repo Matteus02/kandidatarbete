@@ -16,17 +16,17 @@ export function calculateChiSquared(
     const rMod = modRe[i]!
     const iMod = modIm[i]!
 
-    // Residuals
+    // Beräknar im och re residualer och väger dem med mätvärdets storlek för att undvika att små värden dominerar.
     const dRe = rMeas - rMod
     const dIm = iMeas - iMod
 
-  
+
     const weight = rMeas * rMeas + iMeas * iMeas
     const w = weight > 1e-12 ? weight : 1e-12
 
     sum += (dRe * dRe + dIm * dIm) / w
   }
 
-  // Normalize by number of data points
+  // Normalisera med antal punkter.
   return sum / n
 }

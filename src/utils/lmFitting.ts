@@ -15,12 +15,15 @@ export interface FitCircuitOptions {
 
 export interface FitCircuitResult {
   params: number[]
-  paramErrors: number[] 
+  paramErrors: number[]
   fittedZ: Complex[]
   chiSquared: number
   iterations: number
 }
+//Hjälpfunktioner för att anpassa data och modell till LM-algoritmen, samt beräkna parameterfel efter fittning.
 
+
+// Omvandlar complexa impedansvärden till en platt array. Först alla realdelar, sedan alla imaginärdelar. (LM endast rella värden).
 
 export function flattenComplex(zArray: Complex[]): number[] {
   const n = zArray.length
@@ -33,7 +36,8 @@ export function flattenComplex(zArray: Complex[]): number[] {
   return flat
 }
 
-// Inverse of flattenComplex: re-applies the sign convention on the imaginary half.
+//Omvandlar tillbaka till complexa impedansvärden från den platta arrayen.
+
 export function unflattenComplex(flat: number[]): Complex[] {
   const n = Math.floor(flat.length / 2)
   return Array.from({ length: n }, (_, i) => ({
@@ -42,18 +46,7 @@ export function unflattenComplex(flat: number[]): Complex[] {
   }))
 }
 
-// Factory that wraps a CircuitModelFn for use with the LM optimizer.
-//
-// Returns a ParameterizedFunction (the curried form required by ml-levenberg-marquardt):
-//   (logParams) => (xIndex) => weightedPrediction
-//
-// The model is computed once per (logParams) call. The returned closure serves
-// individual data-point predictions without recomputing the model, giving O(1)
-// lookups after the single O(n) model evaluation per LM step.
-//
-// weights[i] = |Z_measured_i| for modulus weighting: dividing both data and model
-// by |Z| means the optimizer minimises relative errors, balancing contributions
-// from low- and high-impedance frequency ranges.
+//anpassar modellfunktionen så att den kan användas med LM-algoritmen
 export function createFlatteningWrapper(
   modelFn: CircuitModelFn,
   omegas: number[],
@@ -73,10 +66,7 @@ export function createFlatteningWrapper(
   }
 }
 
-// Per-parameter standard errors via diagonal covariance approximation.
-// Computes the Jacobian numerically using central differences in log-parameter space,
-// then estimates σ²_i ≈ chiSquared / (n_data - n_params) / J[:,i]·J[:,i].
-// Converts from log-space to linear-space: σ_linear ≈ param * σ_log.
+// Beräknar osäkerheter i de linjära parametrarna baserat på LM-resultatet.
 function computeParamErrors(
   logParams: number[],
   wrappedFn: ReturnType<typeof createFlatteningWrapper>,
@@ -105,7 +95,7 @@ function computeParamErrors(
   })
 }
 
-// Fit circuit model parameters to experimental EIS data using Levenberg-Marquardt.
+//Huvudfunktion för att utföra LM-fittning av en kretsmodell till EIS-data
 export function fitCircuit(options: FitCircuitOptions): FitCircuitResult {
   const { frequencies, zReal, zImag, modelFn, initialParams } = options
   const n = frequencies.length
@@ -149,7 +139,6 @@ export function fitCircuit(options: FitCircuitOptions): FitCircuitResult {
       if (msg.includes('LU matrix is singular')) {
         if (attempts < 2) {
           attempts++
-          // Add small random noise (jitter) to escape the flat/singular region
           currentLogInitial = currentLogInitial.map((v) => v + (Math.random() - 0.5) * 0.1)
           continue
         } else {

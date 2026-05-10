@@ -1,12 +1,13 @@
 import type { EisDataPoint } from '@/types/eis'
 
+//Funktioner som används för att grafiskt ge ECM initala parametervärden.
+
 export interface ArcPeak {
   f: number
   imPeak: number
 }
 
-
-// Detects individual RC arcs by finding local maxima in -Im(Z).
+// Returnerar en lista av ArcPeak, där varje peak har frekvens och -Im(Z) värde. Används för att uppskatta CPE-parametrar.
 
 export function detectArcPeaks(data: EisDataPoint[]): ArcPeak[] {
   const N = data.length
@@ -15,7 +16,7 @@ export function detectArcPeaks(data: EisDataPoint[]): ArcPeak[] {
   const imZ = data.map(d => d['-Im(Z)/Ohm'])
   const freq = data.map(d => d['freq/Hz'])
 
-  // Light 3-point smoothing
+  // 3-point smoothing, motverkar störkningars påverkan.
   const smoothed: number[] = imZ.map((_, i) => {
     const lo = Math.max(0, i - 1)
     const hi = Math.min(N - 1, i + 1)
@@ -43,8 +44,8 @@ export function detectArcPeaks(data: EisDataPoint[]): ArcPeak[] {
   return arcPeaks
 }
 
-// Estimates the Warburg coefficient (A) from the low-frequency tail.
-// Regresses imZ vs 1/sqrt(omega).
+// Uppskattar Warburg A från lågfrekvensdata. Använder linjär regression på de sista punktera.
+// Vid misslyckat försök används en enkel uppskattning baserad på Re(Z) vid lägsta frekvensen.
 
 export function estimateWarburgA(data: EisDataPoint[], Rs: number): number {
   const N = data.length
@@ -81,8 +82,7 @@ export function estimateWarburgA(data: EisDataPoint[], Rs: number): number {
 }
 
 
-// Calculates R from the -Im(Z) peak amplitude and CPE exponent n.
-// R = 2 * Im_peak / tan(n * pi / 4)
+// Beräknar hur stor en RC-arc är i det komplexa planet, baserat på -Im(Z) vid peak och n (CPE-exponenten)
 
 export function rFromPeak(imPeak: number, n: number): number {
   const t = Math.tan((n * Math.PI) / 4)
