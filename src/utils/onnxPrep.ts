@@ -1,8 +1,7 @@
 import type { EisDataPoint } from '@/types/eis';
 
-// ==========================================
-// 1. MATEMATISKA HJÄLPFUNKTIONER (Type-Safe)
-// ==========================================
+
+// 1. Hjälpfunktioner
 
 // Linjär interpolering
 function interp1d(xTarget: number[], x: number[], y: number[]): number[] {
@@ -41,7 +40,7 @@ function interp1d(xTarget: number[], x: number[], y: number[]): number[] {
   });
 }
 
-// Fas-upprullning
+// Fas-unwrapping
 function unwrap(phaseArray: number[]): number[] {
   const unwrapped = [...phaseArray];
   for (let i = 1; i < unwrapped.length; i++) {
@@ -58,7 +57,7 @@ function unwrap(phaseArray: number[]): number[] {
   return unwrapped;
 }
 
-// Central differens
+// Derivata av fasen
 function gradient(y: number[], x: number[]): number[] {
   const dy = Array.from({ length: y.length }, () => 0);
   for (let i = 0; i < y.length; i++) {
@@ -79,9 +78,9 @@ function gradient(y: number[], x: number[]): number[] {
   return dy;
 }
 
-// ==========================================
-// 2. HUVUDFUNKTIONEN
-// ==========================================
+
+// 2. Huvudfunktionen
+
 
 export function prepareEisForOnnx(data: EisDataPoint[]): Float32Array | null {
   if (data.length < 5) return null;
@@ -92,7 +91,6 @@ export function prepareEisForOnnx(data: EisDataPoint[]): Float32Array | null {
 
   const log_freq = freqs.map(f => Math.log10(f));
 
-  // Safe map calls
   let phase = z_im.map((im, i) => {
     const re = z_re[i] ?? 1; // Undvik odefinierad x-koordinat
     return Math.atan2(im, re) * (180 / Math.PI);
@@ -132,7 +130,6 @@ export function prepareEisForOnnx(data: EisDataPoint[]): Float32Array | null {
     return channel.map(val => (val - mean) / std);
   });
 
-  // Flat out into Float32Array securely
   const tensorArray = new Float32Array(6 * 60);
   let index = 0;
   for (let c = 0; c < 6; c++) {

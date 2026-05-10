@@ -4,10 +4,9 @@ import * as ort from 'onnxruntime-web'
 import { MODEL_URL, MODEL_EXTERNAL_DATA, KNOWN_CIRCUITS, N_POINTS } from '@/types/modelConfig'
 import type { InferenceRequest, InferenceResponse, PredictionItem } from '@/types/workerProtocol'
 
-// Point to static copies in public/ort/ so Vite doesn't transform the .mjs files
 ort.env.wasm.wasmPaths = '/ort/'
 
-// ─── Signal processing helpers ────────────────────────────────────────────────
+// Signal processering
 
 function linspace(start: number, stop: number, num: number): number[] {
   const arr = Array.from<number>({ length: num })
@@ -44,14 +43,12 @@ function interp1d(xKnown: number[], yKnown: number[], xQuery: number[]): number[
   const n = xKnown.length;
 
   return xQuery.map((xq) => {
-    // 1. Om vi är utanför gränserna, använd närmaste kantvärde istället för 0.0!
     const maxX = Math.max(...xKnown);
     const minX = Math.min(...xKnown);
 
     if (xq >= maxX) return yKnown[xKnown.indexOf(maxX)]!;
     if (xq <= minX) return yKnown[xKnown.indexOf(minX)]!;
 
-    // 2. Leta efter rätt intervall
     let i = 0;
     while (i < n - 1) {
       const x0 = xKnown[i]!;
@@ -71,36 +68,32 @@ function interp1d(xKnown: number[], yKnown: number[], xQuery: number[]): number[
   });
 }
 
-// ─── Tensor construction ──────────────────────────────────────────────────────
+// Tensor byggare
 
 function buildTensor(data: InferenceRequest['data']): ort.Tensor {
-  // Sort high → low frequency, matching training data layout
   const sorted = [...data].sort((a, b) => b['freq/Hz'] - a['freq/Hz'])
 
   const rawLogFreq = sorted.map((d) => Math.log10(d['freq/Hz']))
   const rawReZ = sorted.map((d) => d['Re(Z)/Ohm'])
-
-  // [UPPDATERING] Gör Imaginärdelen negativ igen för att math-logiken ska bli rätt
   const rawImZ = sorted.map((d) => -d['-Im(Z)/Ohm'])
 
-  // [UPPDATERING] Beräkna fasen och dess derivata
+  // Beräkna fasen och dess derivata
   const angles = rawReZ.map((re, i) => Math.atan2(rawImZ[i]!, re))
   const rawPhaseDeg = unwrapPhase(angles).map((a) => a * (180 / Math.PI))
   const rawPhaseDeriv = gradient(rawPhaseDeg, rawLogFreq)
 
-  // [UPPDATERING] Beräkna Bode magnitud (absolutbeloppet) istället för Slope
+  // Beräkna Bode magnitud
   const rawLogMag = rawReZ.map((re, i) => {
     const im = rawImZ[i]!
     const mag = Math.sqrt(re * re + im * im)
     return Math.log10(mag + 1e-12)
   })
 
-  // 60-point log-spaced grid spanning the actual measurement window
+  // 60-punkters log-grid interpolering
   const logFmax = rawLogFreq[0]!
   const logFmin = rawLogFreq[rawLogFreq.length - 1]!
   const logFixed = linspace(logFmax, logFmin, N_POINTS)
 
-  // [UPPDATERING] Packa de 6 kanalerna exakt i den ordning modellen förväntar sig
   // Re, Im, f, Phase_d, Phase, Mag
   const channels = [
     interp1d(rawLogFreq, rawReZ, logFixed),
@@ -111,17 +104,15 @@ function buildTensor(data: InferenceRequest['data']): ort.Tensor {
     interp1d(rawLogFreq, rawLogMag, logFixed)
   ]
 
-  // [UPPDATERING] Buffer-storlek uppdaterad för 6 kanaler
   const buffer = new Float32Array(6 * N_POINTS)
 
-  // [UPPDATERING] Loopa över de 6 kanalerna
+  // Loopa över de 6 kanalerna
   for (let ch = 0; ch < 6; ch++) {
     const vals = channels[ch]!
     const offset = ch * N_POINTS
 
     for (let i = 0; i < N_POINTS; i++) buffer[offset + i] = vals[i]!
 
-    // Per-sample, per-channel normalization: (x - mean) / (std + 1e-8)
     let sum = 0
     for (let i = 0; i < N_POINTS; i++) sum += buffer[offset + i]!
     const mean = sum / N_POINTS
@@ -137,12 +128,10 @@ function buildTensor(data: InferenceRequest['data']): ort.Tensor {
       buffer[offset + i] = (buffer[offset + i]! - mean) / (std + 1e-8)
     }
   }
-
-  // [UPPDATERING] Dimensionerna uppdaterade till [1, 6, N_POINTS]
   return new ort.Tensor('float32', buffer, [1, 6, N_POINTS])
 }
 
-// ─── Softmax ──────────────────────────────────────────────────────────────────
+// Softmax
 
 function softmax(logits: Float32Array): number[] {
   let max = -Infinity
@@ -155,7 +144,7 @@ function softmax(logits: Float32Array): number[] {
   return exps.map((v) => v / sum)
 }
 
-// ─── Session management ───────────────────────────────────────────────────────
+// Session management
 
 async function buildSessionOptions(): Promise<ort.InferenceSession.SessionOptions> {
   const opts: ort.InferenceSession.SessionOptions = { executionProviders: ['wasm'] }
@@ -178,7 +167,7 @@ function getSession(): Promise<ort.InferenceSession> {
   return sessionPromise
 }
 
-// ─── Message handler ──────────────────────────────────────────────────────────
+// Message handler
 
 self.onmessage = async (event: MessageEvent<InferenceRequest>) => {
   if (event.data.type !== 'run') return

@@ -32,7 +32,7 @@ onMounted(() => {
   isMounted.value = true
 })
 
-// ── Tab Management ───────────────────────────────────────────────────────────
+// Tab Management
 const activeTab = ref('builder')
 const tabs = [
   { id: 'builder', label: 'Circuit Builder' },
@@ -40,7 +40,7 @@ const tabs = [
   { id: 'export', label: 'Export' }
 ] as const
 
-// ── Circuit tree logic (Parent-owned) ────────────────────────────────────────
+// Circuit tree logic
 const {
   rootNode, renderVersion, collectNodes, resetCounters,
   handleNodeDrop, insertIntoEmptyBranch, deleteNode, morphNode
@@ -58,7 +58,7 @@ const editableNodes = computed(() => {
   return collectNodes(rootNode.value)
 })
 
-// ── Model calculation logic (Parent-owned) ───────────────────────────────────
+// Model calculation logic
 const showModel = ref(false)
 const frequencies = computed(() => props.eisData.map(d => d['freq/Hz']))
 const { modelData } = useCircuitModel(rootNode, frequencies, renderVersion)
@@ -67,7 +67,7 @@ watch([modelData, showModel], ([newModel, shouldShow]) => {
   emit('update:model', shouldShow ? newModel : null)
 }, { immediate: true })
 
-// ── Parameter changes ────────────────────────────────────────────────────────
+// Parameter changes
 
 function onParamChange(node: CircuitNode, param: 'value' | 'value2', value: number) {
   node[param] = value
@@ -85,7 +85,7 @@ function onToggleLock(node: CircuitNode, paramIndex: 1 | 2) {
   renderVersion.value++
 }
 
-// ── Curve fitting ────────────────────────────────────────────────────────────
+// Curve fitting
 
 function onRedraw() {
   renderVersion.value++
@@ -99,13 +99,13 @@ const { isFitting, paramErrors, estimateInitialValues, fitModel } = useLMFitting
   morphNode
 )
 
-// ── AI suggestion integration ────────────────────────────────────────────────
+// AI suggestion integration
 
 const aiAppliedCircuit = ref<string | null>(null)
 
 function onSelectCircuit(circuitStr: string) {
   rootNode.value = buildTreeFromString(circuitStr)
-  aiAppliedCircuit.value = null // Clear AI banner if manually selecting a common circuit
+  aiAppliedCircuit.value = null
   resetCounters()
   renderVersion.value++
 }
@@ -119,8 +119,6 @@ watch(
     resetCounters()
     renderVersion.value++
 
-    // Reset the suggested circuit in the store so it can be re-applied
-    // even if the user clicks the same one again after manual changes.
     props.localStore.setAiSuggestedCircuit(null)
 
     if (props.eisData.length > 0) {
@@ -162,7 +160,6 @@ watch(
       </div>
     </BaseTabs>
 
-    <!-- Teleport the parameters and fit buttons to the sidebar (Always mounted) -->
     <Teleport :to="'#' + sidebarTargetId" v-if="isMounted">
       <BaseCard title="Circuit Parameters">
         <ParameterEditor
@@ -173,7 +170,6 @@ watch(
           @toggle-lock="onToggleLock"
         />
 
-        <!-- Action buttons -->
         <div class="sidebar-actions">
           <div class="action-row-secondary">
             <button class="btn btn--outline" :disabled="eisData.length === 0"
@@ -204,7 +200,7 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 24px; 
+  margin-top: 24px;
   padding-top: 16px;
   border-top: 1px solid #e2e8f0;
 }
