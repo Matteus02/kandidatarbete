@@ -1,6 +1,4 @@
 export const MODEL_URL = '/models/eis_classifier_6ch.onnx'
-
-// Lägg denna i samma mapp som .onnx-filen!
 export const MODEL_EXTERNAL_DATA = '/models/eis_classifier_6ch.onnx.data';
 
 export const KNOWN_CIRCUITS = [
@@ -22,13 +20,11 @@ export const KNOWN_CIRCUITS = [
 export type KnownCircuit = (typeof KNOWN_CIRCUITS)[number]
 
 export const N_POINTS = 60
-
-// UPPDATERAD: Nu med 6 kanaler som matchar din nya worker och PyTorch-modell
 export const CHANNEL_DEFS = [
   'Re(Z)',           // ch0
   'Im(Z)',           // ch1
   'log10(freq)',     // ch2
-  'dPhase/dlogF',    // ch3 (Fasderivata)
-  'Phase (deg)',     // ch4 (Rå fasvinkel - NY!)
-  'log10|Z|'         // ch5 (Rå magnitud - NY!)
+  'dPhase/dlogF',    // ch3 phase derivative
+  'Phase (deg)',     // ch4 phase angle
+  'log10|Z|'         // ch5 magnitude
 ] as const;
