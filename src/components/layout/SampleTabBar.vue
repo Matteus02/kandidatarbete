@@ -36,10 +36,6 @@ const finishRename = (sample: SampleTab) => {
   }
 }
 
-// Custom directive to focus the input
-const vFocus = {
-  mounted: (el: HTMLElement) => el.focus()
-}
 </script>
 
 <template>
@@ -59,7 +55,7 @@ const vFocus = {
           @blur="finishRename(sample)"
           @keyup.enter="finishRename(sample)"
           @click.stop
-          v-focus
+          :ref="(el) => el && (el as HTMLInputElement).focus()"
         />
         <template v-else>
           <span class="sample-tab__name">{{ sample.name }}</span>

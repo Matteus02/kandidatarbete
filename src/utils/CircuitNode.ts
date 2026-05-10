@@ -28,14 +28,6 @@ export class CircuitNode {
     this.lowerBranch = null;
   }
 
-  setUpperBranch(node: CircuitNode | null) {
-    this.upperBranch = node;
-  }
-
-  setLowerBranch(node: CircuitNode | null) {
-    this.lowerBranch = node;
-  }
-
   setNext(nextNode: CircuitNode | null) {
     this.next = nextNode;
   }
@@ -44,20 +36,6 @@ export class CircuitNode {
     this.earlier = node;
   }
 
-  getNext() {
-    return this.next;
-  }
-
-  getEarlier() {
-    return this.earlier;
-  }
-
-  createNode( earlierNode: CircuitNode | null, nextNode: CircuitNode | null ){
-    earlierNode?.setNext(this);
-    this.setEarlier(earlierNode);
-    this.setNext(nextNode);
-    nextNode?.setEarlier(this);
-  }
 
 
   countLength(): number {

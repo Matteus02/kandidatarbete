@@ -371,7 +371,6 @@ export function useLMFitting(
 
       if (response.type === 'error') throw new Error(response.message)
 
-      // 1. Uppdatera alla parametrar med de fittade värdena
       const errors: Record<string, number> = {}
       for (let i = 0; i < paramRefs.length; i++) {
         const ref = paramRefs[i]!
@@ -379,25 +378,17 @@ export function useLMFitting(
         errors[`${ref.node.id}:${ref.param}`] = response.paramErrors[i] ?? 0
       }
       paramErrors.value = errors
-
-      // 2. Rita om grafen med de nya värdena
       onRedraw()
 
-      // 3. 🧠 AUTOMATISK KONVERTERING (Här kommer den nya logiken!)
       const allNodes = collectNodes(rootNode.value)
-      const tailNode = allNodes[allNodes.length - 1] // Vi antar att diffusion/svans är sist i kedjan
+      const tailNode = allNodes[allNodes.length - 1]
 
       if (tailNode && tailNode.type === 'CPE') {
         const n = tailNode.value2 ?? 0
-
-        // Kolla om n är nära 0.5 (Warburg)
         if (n > 0.42 && n < 0.58) {
-          // Vi anropar funktionen från usecircuittree.ts
-            morphNode(tailNode, 'W')
-        }
-        // Kolla om n är väldigt högt (Kondensator)
-        else if (n > 0.85) {
-            morphNode(tailNode, 'C')
+          morphNode(tailNode, 'W')
+        } else if (n > 0.85) {
+          morphNode(tailNode, 'C')
         }
       }
 

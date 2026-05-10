@@ -1,8 +1,4 @@
 <script setup lang="ts">
-// Renders a vertical list of labeled number inputs for each circuit element's parameters.
-// When the user changes a value this component emits a 'change' event instead of
-// modifying the node directly, keeping the data-flow unidirectional.
-
 import { ref } from 'vue'
 import type { CircuitNode, ElementType } from '@/utils/CircuitNode'
 
@@ -104,7 +100,7 @@ function fmtError(value: number | undefined, error: number | undefined): string 
                   class="param-id-input"
                   @blur="finishRename(node)"
                   @keyup.enter="finishRename(node)"
-                  v-focus
+                  :ref="(el) => el && (el as HTMLInputElement).focus()"
                 />
                 <span v-else class="param-id" @click="startRename(node)">{{ node.id }}</span>
               </div>
@@ -163,19 +159,13 @@ function fmtError(value: number | undefined, error: number | undefined): string 
   </div>
 </template>
 
-<script lang="ts">
-const vFocus = {
-  mounted: (el: HTMLElement) => el.focus()
-}
-</script>
-
 <style scoped>
 .param-editor {
   margin: -24px -24px 0;
 }
 
 .param-editor-scroll {
-  max-height: calc(100vh - 500px);
+  max-height: 40vh;
   overflow-y: auto;
 }
 

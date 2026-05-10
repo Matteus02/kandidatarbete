@@ -91,6 +91,7 @@ function onRedraw() {
   renderVersion.value++
 }
 
+
 const { isFitting, paramErrors, estimateInitialValues, fitModel } = useLMFitting(
   rootNode,
   () => props.eisData,
@@ -123,7 +124,7 @@ watch(
 
     if (props.eisData.length > 0) {
       showModel.value = true
-      fitModel().then(() => fitModel())
+      estimateInitialValues()
     }
   },
   { immediate: true },
@@ -173,7 +174,7 @@ watch(
         <div class="sidebar-actions">
           <div class="action-row-secondary">
             <button class="btn btn--outline" :disabled="eisData.length === 0"
-              @click="showModel ? showModel=false : showModel=true"
+              @click="showModel = !showModel"
               >
               {{ showModel ? 'Disable ECM-Plot' : 'Enable ECM-plot' }}
             </button>
