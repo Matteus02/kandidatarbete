@@ -309,8 +309,11 @@ export function useLMFitting(
       paramErrors.value = errors
       onRedraw()
 
-      const allNodes = collectNodes(rootNode.value)
-      const tailNode = allNodes[allNodes.length - 1]
+      // Find the true tail node by following the main chain (.next)
+      let tailNode = rootNode.value
+      while (tailNode.next && tailNode.next.type !== 'end') {
+        tailNode = tailNode.next
+      }
 
       if (tailNode && tailNode.type === 'CPE') {
         const n = tailNode.value2 ?? 0
