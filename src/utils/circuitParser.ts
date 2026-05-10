@@ -102,7 +102,7 @@ export function stringifyTree(root: CircuitNode | null): string {
       const upper = stringifyTree(current.upperBranch)
       const lower = stringifyTree(current.lowerBranch)
       parts.push(`p(${upper},${lower})`)
-    } else if (current.type !== 'empty') {
+    } else {
       parts.push(current.id)
     }
 

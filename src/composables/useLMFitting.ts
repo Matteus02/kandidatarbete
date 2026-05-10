@@ -4,18 +4,23 @@ import type { CircuitNode, ElementType } from '@/utils/CircuitNode'
 import type { EisDataPoint } from '@/types/eis'
 import FittingWorker from '@/workers/lmFitting.worker.ts?worker'
 import type { FittingRequest, FittingResponse, SerializedNode } from '@/types/fittingWorkerProtocol'
+import { detectArcPeaks, estimateWarburgA, rFromPeak } from '@/utils/heuristics'
 
+// typ för en funktion som samlar ihop alla noder i kretsen
 type CollectFn = (node: CircuitNode | null) => CircuitNode[]
 
-// Serialise the full circuit tree to a flat JSON-safe array.
-// Includes ALL node types (parallel, end) because zOfChain traverses them.
+// Gör om trädstrukturen till en platt array så att vår web worker kan läsa den
 function serializeTree(root: CircuitNode): SerializedNode[] {
-  const visited = new Set<string>()
+  const visited = new Set<string>() // håller koll så vi inte fastnar i en evig loop
   const result: SerializedNode[] = []
 
   function visit(node: CircuitNode | null) {
+    // om noden är null eller redan har besökts, hoppa ur
     if (!node || visited.has(node.id)) return
+
     visited.add(node.id)
+
+    // spara ner all info vi behöver i arrayen
     result.push({
       id:            node.id,
       type:          node.type,
@@ -27,6 +32,8 @@ function serializeTree(root: CircuitNode): SerializedNode[] {
       locked:        node.locked,
       locked2:       node.locked2,
     })
+
+    // kör rekursivt på nästa nod och eventuella grenar
     visit(node.next)
     visit(node.upperBranch)
     visit(node.lowerBranch)
@@ -36,6 +43,7 @@ function serializeTree(root: CircuitNode): SerializedNode[] {
   return result
 }
 
+// Composable för att hantera själva Levenberg-Marquardt fittingen
 export function useLMFitting(
   rootNode: Ref<CircuitNode>,
   getEisData: () => EisDataPoint[],
@@ -43,15 +51,18 @@ export function useLMFitting(
   onRedraw: () => void,
   morphNode: (node: CircuitNode, newType: ElementType) => void,
 ) {
-  const isFitting = ref(false)
-  const paramErrors = ref<Record<string, number>>({})
+  const isFitting = ref(false) // laddnings-state för UI:t
+  const paramErrors = ref<Record<string, number>>({}) // sparar felmarginaler för parametrarna
 
   let fittingWorker: Worker | null = null
+
+  // lazy-loadar workern bara när den faktiskt behövs för att spara resurser
   function getFittingWorker(): Worker {
     if (!fittingWorker) fittingWorker = new FittingWorker()
     return fittingWorker
   }
 
+  // städa upp workern när komponenten förstörs så vi inte läcker minne
   onUnmounted(() => {
     if (fittingWorker) {
       fittingWorker.terminate()
@@ -59,114 +70,53 @@ export function useLMFitting(
     }
   })
 
-  // ── Heuristic Initial Value Estimation ──────────────────────────────────
-
+  // Försöker gissa bra startvärden så att optimeringen inte blir knas
   function estimateInitialValues() {
     const data = getEisData()
-    if (data.length === 0) return
+    if (data.length === 0) return // ingen data, inget att göra
 
-    // Sort high→low frequency (standard EIS presentation order)
+    // sortera från högsta till lägsta frekvens
     const sorted = [...data].sort((a, b) => b['freq/Hz'] - a['freq/Hz'])
     const reZ  = sorted.map(d => d['Re(Z)/Ohm'])
-    const imZ  = sorted.map(d => d['-Im(Z)/Ohm'])  // positive = capacitive (EIS convention)
+    const imZ  = sorted.map(d => d['-Im(Z)/Ohm'])
     const freq = sorted.map(d => d['freq/Hz'])
     const N    = sorted.length
 
-    // ── 1. Series resistance ─────────────────────────────────────────────
-    // Re(Z) at highest frequency: CPE/C are nearly short-circuits at high ω,
-    // so only the ohmic series resistance contributes.
+    // Rs är typ serieresistansen, tar första värdet (vid hög frekvens) som gissning
     const Rs    = Math.max(reZ[0] ?? 1, 1)
     const ReMax = Math.max(...reZ)
 
-    // ── 2. Detect individual RC arcs ─────────────────────────────────────
-    // Each parallel R-(C|CPE) block produces one peak in -Im(Z).
-    // Light 3-point smoothing suppresses noise before peak detection.
-    const smoothed: number[] = imZ.map((_, i) => {
-      const lo = Math.max(0, i - 1)
-      const hi = Math.min(N - 1, i + 1)
-      let s = 0
-      for (let k = lo; k <= hi; k++) s += imZ[k]!
-      return s / (hi - lo + 1)
-    })
-    const globalMaxIm = Math.max(...smoothed, 1e-30)
-    const minProm     = globalMaxIm * 0.05   // ignore spikes < 5 % of the tallest arc
+    // hitta topparna i datan
+    const arcPeaks = detectArcPeaks(sorted)
+    const warburgA = estimateWarburgA(sorted, Rs)
 
-    const arcPeaks: { f: number; imPeak: number }[] = []
-    for (let i = 1; i < N - 1; i++) {
-      const v = smoothed[i]!
-      if (v > smoothed[i - 1]! && v >= smoothed[i + 1]! && v >= minProm) {
-        arcPeaks.push({ f: freq[i]!, imPeak: imZ[i]! })
-      }
-    }
-    // Fallback: no local max found (e.g. monotone data) — use global maximum
-    if (arcPeaks.length === 0) {
-      const idx = smoothed.indexOf(globalMaxIm)
-      arcPeaks.push({ f: freq[idx] ?? 1, imPeak: Math.max(imZ[idx] ?? 1, 1) })
-    }
-    // arcPeaks is already ordered high→low frequency because the input is sorted that way.
-
-    // ── 3. Warburg coefficient from low-frequency 45° tail ───────────────
-    // For a semi-infinite Warburg: -Im(Z_W) = A/√(2ω) = (A/√2)·(1/√ω)
-    // Regress imZ vs 1/√ω over the lowest-frequency points; slope = A/√2.
-    const nLow  = Math.max(3, Math.min(7, Math.floor(N / 4)))
-    const lowPts = sorted.slice(N - nLow)
-    let warburgA = Math.max((ReMax - Rs) * Math.sqrt(2 * Math.PI * (freq[N - 1] ?? 0.01)), 1)
-    if (lowPts.length >= 2) {
-      let sumX = 0, sumY = 0, sumXX = 0, sumXY = 0
-      for (const d of lowPts) {
-        const x = 1 / Math.sqrt(2 * Math.PI * Math.max(d['freq/Hz'], 1e-10))
-        const y = d['-Im(Z)/Ohm']
-        sumX  += x;  sumY  += y
-        sumXX += x * x;  sumXY += x * y
-      }
-      const nL  = lowPts.length
-      const det = nL * sumXX - sumX * sumX
-      if (det > 1e-30) {
-        const slope = (nL * sumXY - sumX * sumY) / det   // slope = A / √2
-        warburgA = Math.max(slope * Math.SQRT2, 1)
-      }
-    }
-
-    // ── 4. Walk the circuit tree and assign ──────────────────────────────
-    // arcIdx tracks which detected peak is assigned to the next parallel block
-    // (high-frequency arc → first parallel block, etc.).
     let arcIdx     = 0
     let seriesRIdx = 0
 
-    // Count parallel blocks so we can divide the impedance span evenly
-    // when there are fewer detected peaks than parallel blocks.
+    // räknar hur många parallella block vi har i kretsen
     function countParallelBlocks(node: CircuitNode | null): number {
       if (!node || node.type === 'end') return 0
       return (node.type === 'parallel' ? 1 : 0) + countParallelBlocks(node.next)
     }
     const numParallelBlocks = Math.max(countParallelBlocks(rootNode.value), 1)
 
-    // For a parallel R-CPE arc the peak condition gives R·Q·ωp^n = 1, so:
-    //   Q = 1 / (R · ωp^n)
-    // The -Im(Z) amplitude at the peak equals R/2 · tan(n·π/4), so:
-    //   R = 2 · Im_peak / tan(n·π/4)
-    // For n = 1 (capacitor) this reduces to R = 2 · Im_peak, the standard result.
-    function rFromPeak(imPeak: number, n: number): number {
-      const t = Math.tan((n * Math.PI) / 4)
-      return Math.max((2 * imPeak) / (t > 0 ? t : 1), 1)
-    }
-
-    // Walk a chain (following .next) and return the first C or CPE node found, or null.
+    // letar efter en kondensator (eller liknande) i kedjan
     function findCapInChain(node: CircuitNode | null): CircuitNode | null {
       if (!node || node.type === 'end') return null
       if (node.type === 'C' || node.type === 'CPE') return node
       return findCapInChain(node.next)
     }
 
+    // går igenom noderna och sätter startvärden beroende på vad det är för komponent
     function assignNode(node: CircuitNode | null) {
       if (!node || node.type === 'end') return
 
       switch (node.type) {
         case 'R': {
           if (!node.locked) {
+            // första R brukar vara Rs, annars gissar vi på 5% av maxbredden typ
             const est = seriesRIdx === 0
               ? Rs
-              // Inner series R: use a small fraction of the total Re span as a safe seed
               : Math.max((ReMax - Rs) * 0.05, 1)
             node.value = est
           }
@@ -175,18 +125,17 @@ export function useLMFitting(
         }
 
         case 'parallel': {
-          // Consume the next highest-frequency arc peak for this parallel block.
-          // If we have fewer detected peaks than parallel blocks, divide the total
-          // impedance span evenly so each block doesn't get the full arc amplitude.
           const arc    = arcPeaks[arcIdx] ?? arcPeaks[arcPeaks.length - 1] ?? { f: 1, imPeak: (ReMax - Rs) / 2 }
           const fallbackScale = arcIdx >= arcPeaks.length ? 1 / numParallelBlocks : 1
           arcIdx++
+
           const omegaC = 2 * Math.PI * arc.f
-          // Determine n from whichever capacitive element sits in either branch,
-          // then compute one shared R_p so R and C/CPE stay self-consistent.
           const capNode = findCapInChain(node.upperBranch) ?? findCapInChain(node.lowerBranch)
-          const nEst = capNode?.type === 'CPE' ? 0.85 : 1
+          const nEst = capNode?.type === 'CPE' ? 0.85 : 1 // gissar n-värdet för CPE
+
           const Rp   = rFromPeak(arc.imPeak, nEst) * fallbackScale
+
+          // sätter värden på båda grenarna i det parallella blocket
           assignBranch(node.upperBranch, Rp, omegaC)
           assignBranch(node.lowerBranch, Rp, omegaC)
           break
@@ -194,7 +143,6 @@ export function useLMFitting(
 
         case 'C':
         case 'CPE': {
-          // Lone capacitive element outside a parallel block
           const arc    = arcPeaks[arcIdx] ?? arcPeaks[arcPeaks.length - 1] ?? { f: 1, imPeak: 10 }
           arcIdx++
           const Rp     = rFromPeak(arc.imPeak, node.type === 'CPE' ? 0.85 : 1)
@@ -224,6 +172,7 @@ export function useLMFitting(
         case 'L': {
           if (!node.locked) {
             const imHF = imZ[0] ?? 0
+            // gissar induktans baserat på första högfrekventa punkten
             const est = imHF < 0
               ? Math.abs(imHF) / (2 * Math.PI * (freq[0] ?? 1))
               : 1e-6
@@ -233,11 +182,10 @@ export function useLMFitting(
         }
       }
 
-      assignNode(node.next)
+      assignNode(node.next) // vidare till nästa!
     }
 
-    // Assign a single element inside a parallel branch.
-    // Rp = parallel resistance for this arc, omegaC = arc's characteristic frequency.
+    // hjälpfunk för att sätta värden inne i ett parallellt block
     function assignBranch(node: CircuitNode | null, Rp: number, omegaC: number) {
       if (!node || node.type === 'end') return
       switch (node.type) {
@@ -270,18 +218,16 @@ export function useLMFitting(
           }
           break
       }
-      // Follow a chain within the branch (handles nested series elements inside a branch)
       if (node.next) assignBranch(node.next, Rp, omegaC)
     }
 
+    // räknar ut C baserat på Rp och omega
     function assignCapacitive(node: CircuitNode, Rp: number, omegaC: number) {
       if (node.type === 'C') {
-        // C = 1 / (R · ω_peak) from the peak condition ω_peak · R · C = 1
         if (!node.locked) {
           node.value = 1 / (Math.max(Rp, 1) * omegaC)
         }
       } else if (node.type === 'CPE') {
-        // Q = 1 / (R · ω_peak^n) from the CPE peak condition R·Q·ω_peak^n = 1
         if (!node.locked2) {
           node.value2 = 0.85
         }
@@ -291,15 +237,15 @@ export function useLMFitting(
       }
     }
 
+    // kör igång hela startvärdes-processen från roten
     assignNode(rootNode.value)
     onRedraw()
-    
 
+    // sen kör vi själva fittingen direkt efter
     fitModel()
   }
 
-  // ── Levenberg-Marquardt Curve Fitting (Web Worker) ───────────────────────
-
+  // Huvudfunktionen som skickar datan till workern för att optimera modellen
   async function fitModel() {
     const data = getEisData()
     if (data.length === 0) {
@@ -310,6 +256,7 @@ export function useLMFitting(
     isFitting.value = true
     paramErrors.value = {}
 
+    // filtrera fram bara de komponenter vi faktiskt kan optimera
     const optimizableNodes = collectNodes(rootNode.value).filter(n =>
       ['R', 'C', 'CPE', 'W', 'Wo', 'Ws', 'L'].includes(n.type),
     )
@@ -319,6 +266,7 @@ export function useLMFitting(
       return
     }
 
+    // bygger en lista på vilka specifika parametrar som ska optimeras
     type ParamRef = { node: CircuitNode; param: 'value' | 'value2' }
     const paramRefs: ParamRef[] = []
     for (const node of optimizableNodes) {
@@ -341,6 +289,7 @@ export function useLMFitting(
     const zReal = sorted.map(d => d['Re(Z)/Ohm'])
     const zImag = sorted.map(d => d['-Im(Z)/Ohm'])
 
+    // bygger request-objektet som vi ska posta till workern
     const request: FittingRequest = {
       type: 'fit',
       nodes: serializeTree(rootNode.value),
@@ -352,6 +301,7 @@ export function useLMFitting(
     }
 
     try {
+      // väntar på svar från workern
       const response = await new Promise<FittingResponse>((resolve, reject) => {
         const w = getFittingWorker()
         const onMessage = (event: MessageEvent<FittingResponse>) => {
@@ -371,7 +321,7 @@ export function useLMFitting(
 
       if (response.type === 'error') throw new Error(response.message)
 
-      // 1. Uppdatera alla parametrar med de fittade värdena
+      // uppdaterar UI:t med de nya uträknade värdena och felmarginalerna
       const errors: Record<string, number> = {}
       for (let i = 0; i < paramRefs.length; i++) {
         const ref = paramRefs[i]!
@@ -379,37 +329,31 @@ export function useLMFitting(
         errors[`${ref.node.id}:${ref.param}`] = response.paramErrors[i] ?? 0
       }
       paramErrors.value = errors
-
-      // 2. Rita om grafen med de nya värdena
       onRedraw()
 
-      // 3. 🧠 AUTOMATISK KONVERTERING (Här kommer den nya logiken!)
-      const allNodes = collectNodes(rootNode.value)
-      const tailNode = allNodes[allNodes.length - 1] // Vi antar att diffusion/svans är sist i kedjan
-
-      if (tailNode && tailNode.type === 'CPE') {
-        const n = tailNode.value2 ?? 0
-
-        // Kolla om n är nära 0.5 (Warburg)
-        if (n > 0.42 && n < 0.58) {
-          // Vi anropar funktionen från usecircuittree.ts
-            morphNode(tailNode, 'W')
-          console.log(`AI & Fit-koll: CPE konverterad till Warburg (n=${n.toFixed(2)})`)
-        }
-        // Kolla om n är väldigt högt (Kondensator)
-        else if (n > 0.85) {
-            morphNode(tailNode, 'C')
-          console.log("Hög fasvinkel detekterad: Konverterade svans till kondensator.")
-        }
+      // letar reda på sista noden (svansen) i huvudkedjan
+      let tailNode = rootNode.value
+      while (tailNode.next && tailNode.next.type !== 'end') {
+        tailNode = tailNode.next
       }
 
-      console.log(`LM fit klar. χ² = ${response.chiSquared.toExponential(3)}`)
+      // om sista noden är en CPE, kollar vi n-värdet.
+      // Är det typ 0.5 gör vi om den till en Warburg. Är det nära 1 blir det en kondensator.
+      if (tailNode && tailNode.type === 'CPE') {
+        const n = tailNode.value2 ?? 0
+        if (n > 0.42 && n < 0.58) {
+          morphNode(tailNode, 'W')
+        } else if (n > 0.85) {
+          morphNode(tailNode, 'C')
+        }
+      }
 
     } catch (err) {
       console.error('LM fitting failed:', err)
       const msg = err instanceof Error ? err.message : String(err)
       alert(`Fitting error: ${msg.slice(0, 300)}`)
     } finally {
+      // släck laddnings-spinnern oavsett om det gick bra eller krashade
       isFitting.value = false
     }
   }

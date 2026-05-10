@@ -49,7 +49,7 @@ const version = '1.0.0 beta'
 <style scoped>
 .app-header {
   padding: 12px 24px;
-  background: white;
+  background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
@@ -79,7 +79,7 @@ const version = '1.0.0 beta'
   font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: #0f172a;
+  color: var(--color-text);
   margin: 0;
 }
 

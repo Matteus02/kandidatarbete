@@ -55,14 +55,14 @@ defineExpose({
 .section-label {
   font-size: 13px;
   font-weight: 600;
-  color: #555;
+  color: var(--color-text-muted);
   margin: 14px 0 6px;
 }
 
 .canvas-wrap {
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #fafafa;
+  background: var(--color-bg);
   overflow-x: auto;
   padding: 8px 0;
 }

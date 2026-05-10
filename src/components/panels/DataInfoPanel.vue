@@ -116,7 +116,7 @@ watch(
 }
 
 .empty-state {
-  color: #888;
+  color: var(--color-text-subtle);
   text-align: center;
   padding: 10px 0;
 }
@@ -154,14 +154,14 @@ watch(
 }
 
 .label {
-  color: #666;
+  color: var(--color-text-muted);
   font-weight: 500;
 }
 
 .value {
   font-family: monospace;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text);
 }
 
 .subset-row {
@@ -170,15 +170,15 @@ watch(
 }
 
 .value--subset {
-  color: #007bff;
+  color: var(--color-primary);
 }
 
 .stat-divider {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  color: #999;
-  border-bottom: 1px solid #eee;
+  color: var(--color-text-subtle);
+  border-bottom: 1px solid var(--color-border);
   padding-bottom: 2px;
   margin-top: 14px;
   margin-bottom: 4px;

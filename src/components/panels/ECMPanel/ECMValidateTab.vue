@@ -65,15 +65,12 @@ const residuals = computed(() => {
 
 <style scoped>
 .validation-top {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 16px;
   margin-bottom: 20px;
 }
 
 .validation-card {
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 16px;
   display: flex;
@@ -84,7 +81,7 @@ const residuals = computed(() => {
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--color-text-muted);
   margin: 0 0 12px 0;
   letter-spacing: 0.05em;
 }
@@ -103,12 +100,12 @@ const residuals = computed(() => {
 .chi-value {
   font-size: 24px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--color-text);
   font-family: monospace;
 }
 
 .placeholder-text {
-  color: #94a3b8;
+  color: var(--color-text-subtle);
   font-size: 13px;
   font-style: italic;
   text-align: center;

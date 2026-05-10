@@ -124,15 +124,13 @@ const onFileChange = (event: Event) => {
 .data-panel {
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  align-items: flex-start;
   gap: 12px;
   align-items: stretch;
 }
 
 .instruction {
   font-size: 13px;
-  color: #666;
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -140,8 +138,8 @@ const onFileChange = (event: Event) => {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 10px;
 }
@@ -157,7 +155,7 @@ const onFileChange = (event: Event) => {
 .name-text {
   font-size: 13px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -181,8 +179,8 @@ const onFileChange = (event: Event) => {
 .file-label {
   display: block;
   padding: 10px 12px;
-  background: #f8f9fa;
-  border: 1px solid #ced4da;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
@@ -196,20 +194,20 @@ const onFileChange = (event: Event) => {
 
 .file-label:hover {
   background: #e9ecef;
-  border-color: #adb5bd;
+  border-color: var(--color-border);
 }
 
 .file-label--change {
-  background: white;
-  border-color: #007bff;
-  color: #007bff;
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
   padding: 6px 12px;
   font-size: 12px;
 }
 
 .file-label--change:hover {
   background: #f0f7ff;
-  border-color: #0056b3;
+  border-color: var(--color-primary-hover);
 }
 
 .success-message {
@@ -224,14 +222,14 @@ const onFileChange = (event: Event) => {
   gap: 10px;
   margin-top: 4px;
   padding-top: 12px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--color-border);
 }
 
 .section-divider {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: var(--color-text-subtle);
   letter-spacing: 0.025em;
 }
 
@@ -250,23 +248,23 @@ const onFileChange = (event: Event) => {
 .input-group label {
   font-size: 11px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 
 .input-group input {
   width: 100%;
   padding: 6px 8px;
   font-size: 13px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  background: #fff;
-  color: #1e293b;
+  background: var(--color-surface);
+  color: var(--color-text);
   font-family: monospace;
 }
 
 .input-group input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 

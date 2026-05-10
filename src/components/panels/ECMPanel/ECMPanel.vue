@@ -91,6 +91,7 @@ function onRedraw() {
   renderVersion.value++
 }
 
+
 const { isFitting, paramErrors, estimateInitialValues, fitModel } = useLMFitting(
   rootNode,
   () => props.eisData,
@@ -123,7 +124,7 @@ watch(
 
     if (props.eisData.length > 0) {
       showModel.value = true
-      fitModel().then(() => fitModel())
+      estimateInitialValues()
     }
   },
   { immediate: true },
@@ -173,7 +174,7 @@ watch(
         <div class="sidebar-actions">
           <div class="action-row-secondary">
             <button class="btn btn--outline" :disabled="eisData.length === 0"
-              @click="showModel ? showModel=false : showModel=true"
+              @click="showModel = !showModel"
               >
               {{ showModel ? 'Disable ECM-Plot' : 'Enable ECM-plot' }}
             </button>
@@ -209,7 +210,7 @@ watch(
   gap: 8px;
   margin-top: 24px;
   padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--color-border);
 }
 
 .action-row-secondary {
@@ -240,19 +241,19 @@ watch(
 }
 
 .btn--primary {
-  background: #007bff;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-surface);
   flex: 1;
 }
 
 .btn--primary:hover:not(:disabled) {
-  background: #0056b3;
+  background: var(--color-primary-hover);
 }
 
 .btn--outline {
-  background: white;
-  border-color: #007bff;
-  color: #007bff;
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
   flex: 1;
 }
 
@@ -263,7 +264,7 @@ watch(
 .hint {
   font-weight: 400;
   font-size: 11px;
-  color: #aaa;
+  color: var(--color-text-subtle);
   margin-left: 6px;
 }
 </style>

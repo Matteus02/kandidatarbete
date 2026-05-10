@@ -5,33 +5,23 @@ import DataInfoPanel from '@/components/panels/DataInfoPanel.vue'
 import PlotPanel from '@/components/panels/PlotPanel.vue'
 import AIPanel from '@/components/panels/AIPanel.vue'
 import ECMmodule from '@/components/panels/ECMPanel/ECMPanel.vue'
-import type { EisDataPoint, Circuit, FitResult, KKResult } from '@/types/eis'
+import type { EisDataPoint, KKResult } from '@/types/eis'
 import type { PredictionItem } from '@/types/workerProtocol'
 import type { ModelData } from '@/composables/useCircuitModel'
-import { parseEisCsv } from '@/utils/csvParser'
 
 // --- Local state for this sample ---
 const state = reactive({
   rawCsvText: null as string | null,
   fileName: null as string | null,
   dataPoints: [] as EisDataPoint[],
-  selectedCircuit: null as Circuit | null,
-  fitParams: null as FitResult | null,
   aiSuggestedCircuit: null as string | null,
   aiSuggestions: [] as PredictionItem[],
   kkResult: null as KKResult | null,
-  isLoading: false,
-  error: null as string | null,
   minFreq: null as number | null,
   maxFreq: null as number | null,
 })
 
 const modelTrace = ref<ModelData | null>(null)
-
-// --- Computed ---
-const frequencies = computed(() => state.dataPoints.map((p) => p['freq/Hz']))
-const zReal = computed(() => state.dataPoints.map((p) => p['Re(Z)/Ohm']))
-const zImag = computed(() => state.dataPoints.map((p) => p['-Im(Z)/Ohm']))
 
 const filteredDataPoints = computed(() => {
   if (state.minFreq === null && state.maxFreq === null) return state.dataPoints
@@ -46,20 +36,6 @@ const filteredDataPoints = computed(() => {
 const isFiltered = computed(() => state.minFreq !== null || state.maxFreq !== null)
 
 // --- Actions ---
-function loadCsv(text: string, name: string): void {
-  state.rawCsvText = text
-  state.fileName = name
-  state.minFreq = null
-  state.maxFreq = null
-  try {
-    state.dataPoints = parseEisCsv(text)
-    state.kkResult = null // Reset validation on new file
-  } catch (err) {
-    console.error('Error parsing CSV:', err)
-    state.dataPoints = []
-  }
-}
-
 function setAiSuggestedCircuit(circuit: string | null): void {
   state.aiSuggestedCircuit = circuit
 }
@@ -72,31 +48,15 @@ function setKkResult(result: KKResult | null): void {
   state.kkResult = result
 }
 
-function setFreqRange(min: number | null, max: number | null): void {
-  state.minFreq = min
-  state.maxFreq = max
-}
-
-// Mock of the store interface for compatibility with existing components
 const localStore = {
-  get rawCsvText() { return state.rawCsvText },
-  get fileName() { return state.fileName },
-  get dataPoints() { return state.dataPoints },
-  get frequencies() { return frequencies.value },
-  get zReal() { return zReal.value },
-  get zImag() { return zImag.value },
   get aiSuggestedCircuit() { return state.aiSuggestedCircuit },
   get aiSuggestions() { return state.aiSuggestions },
-  get isLoading() { return state.isLoading },
-  get error() { return state.error },
   get kkResult() { return state.kkResult },
   get minFreq() { return state.minFreq },
   get maxFreq() { return state.maxFreq },
   setAiSuggestedCircuit,
   setAiSuggestions,
-  loadCsv,
   setKkResult,
-  setFreqRange,
 }
 
 const props = defineProps<{
@@ -221,7 +181,7 @@ const eisPlotsRef = ref<{ downloadPlotImage: (type: 'nyquist' | 'bode') => void 
   width: 4px;
 }
 .workspace-sidebar::-webkit-scrollbar-thumb {
-  background: #ddd;
+  background: var(--color-border);
   border-radius: 4px;
 }
 
