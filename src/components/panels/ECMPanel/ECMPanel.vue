@@ -182,11 +182,18 @@ watch(
               {{ showModel ? 'Disable ECM-Plot' : 'Enable ECM-plot' }}
             </button>
           </div>
-          <button class="btn btn--primary" :disabled="isFitting || eisData.length === 0"
-            @click="estimateInitialValues">
-            {{ isFitting ? 'Fitting…' : 'Fit Parameters (Auto)' }}
-          </button>
-          <span class="hint">Auto fits parameters using Levenberg Marquards algorithm</span>
+          <div class="fit-buttons">
+            <button class="btn btn--primary" :disabled="isFitting || eisData.length === 0"
+              @click="estimateInitialValues">
+              {{ isFitting ? 'Fitting…' : 'Estimate & Fit' }}
+            </button>
+            <button class="btn btn--outline" :disabled="isFitting || eisData.length === 0"
+              @click="fitModel">
+              {{ isFitting ? 'Fitting…' : 'Re-Fit' }}
+            </button>
+          </div>
+          <span class="hint">Estimate & Fit: resets parameters from data then fits</span>
+          <span class="hint">Re-Fit: fits again from current values (warm start)</span>
           <span class="hint">Click the lock icon to fix a parameter at its current value before fitting</span>
         </div>
       </BaseCard>
@@ -231,10 +238,15 @@ watch(
   cursor: not-allowed;
 }
 
+.fit-buttons {
+  display: flex;
+  gap: 8px;
+}
+
 .btn--primary {
   background: #007bff;
   color: white;
-  width: 100%;
+  flex: 1;
 }
 
 .btn--primary:hover:not(:disabled) {
