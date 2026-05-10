@@ -118,7 +118,7 @@ function handleApply(circuit: string): void {
 
 <style scoped>
 .ai-empty {
-  color: var(--color-text-muted, #888);
+  color: var(--color-text-muted);
   font-size: 13px;
   padding: 4px 0;
 }

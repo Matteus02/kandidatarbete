@@ -65,12 +65,8 @@ function handleExportPlot(type: 'nyquist' | 'bode') {
       <div class="export-card">
         <h4 class="card-title">CSV Reports</h4>
         <div class="btn-group">
-          <button class="export-btn" @click="handleExportParams">
-            <span class="icon"></span> Download Parameters
-          </button>
-          <button class="export-btn" :disabled="!modelData" @click="handleExportTrace">
-            <span class="icon"></span> Download Model Trace
-          </button>
+          <button class="export-btn" @click="handleExportParams">Download Parameters</button>
+          <button class="export-btn" :disabled="!modelData" @click="handleExportTrace">Download Model Trace</button>
         </div>
       </div>
 
@@ -78,15 +74,9 @@ function handleExportPlot(type: 'nyquist' | 'bode') {
       <div class="export-card">
         <h4 class="card-title">Image Exports</h4>
         <div class="btn-group">
-          <button class="export-btn" @click="handleExportCircuitImage">
-            <span class="icon"></span> Download Circuit (PNG)
-          </button>
-          <button class="export-btn" :disabled="!eisPlotsRef" @click="handleExportPlot('nyquist')">
-            <span class="icon"></span> Download Nyquist Plot
-          </button>
-          <button class="export-btn" :disabled="!eisPlotsRef" @click="handleExportPlot('bode')">
-            <span class="icon"></span> Download Bode Plot
-          </button>
+          <button class="export-btn" @click="handleExportCircuitImage">Download Circuit (PNG)</button>
+          <button class="export-btn" :disabled="!eisPlotsRef" @click="handleExportPlot('nyquist')">Download Nyquist Plot</button>
+          <button class="export-btn" :disabled="!eisPlotsRef" @click="handleExportPlot('bode')">Download Bode Plot</button>
         </div>
       </div>
 
@@ -196,9 +186,5 @@ function handleExportPlot(type: 'nyquist' | 'bode') {
   opacity: 0.5;
   cursor: not-allowed;
   background: var(--color-bg);
-}
-
-.icon {
-  font-size: 16px;
 }
 </style>

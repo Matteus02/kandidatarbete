@@ -65,9 +65,6 @@ const residuals = computed(() => {
 
 <style scoped>
 .validation-top {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 16px;
   margin-bottom: 20px;
 }
 

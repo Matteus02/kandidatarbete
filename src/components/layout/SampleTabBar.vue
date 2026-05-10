@@ -117,7 +117,7 @@ const vFocus = {
 }
 
 .sample-tab:hover {
-  background: var(--color-bg);
+  background: var(--color-surface);
 }
 
 .sample-tab--active {
@@ -217,7 +217,7 @@ const vFocus = {
 }
 
 .add-sample-btn:hover {
-  background: var(--color-bg);
+  background: var(--color-surface);
   color: var(--color-text);
 }
 </style>

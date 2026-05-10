@@ -84,7 +84,6 @@ function onDragStart(event: DragEvent, type: string) {
   padding: 4px 8px;
   cursor: grab;
   user-select: none;
-  -webkit-user-select: none;
   transition: background-color 0.15s;
 }
 
