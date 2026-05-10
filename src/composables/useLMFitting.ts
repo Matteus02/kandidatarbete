@@ -394,16 +394,12 @@ export function useLMFitting(
         if (n > 0.42 && n < 0.58) {
           // Vi anropar funktionen från usecircuittree.ts
             morphNode(tailNode, 'W')
-          console.log(`AI & Fit-koll: CPE konverterad till Warburg (n=${n.toFixed(2)})`)
         }
         // Kolla om n är väldigt högt (Kondensator)
         else if (n > 0.85) {
             morphNode(tailNode, 'C')
-          console.log("Hög fasvinkel detekterad: Konverterade svans till kondensator.")
         }
       }
-
-      console.log(`LM fit klar. χ² = ${response.chiSquared.toExponential(3)}`)
 
     } catch (err) {
       console.error('LM fitting failed:', err)

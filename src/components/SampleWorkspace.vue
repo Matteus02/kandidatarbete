@@ -54,8 +54,7 @@ function loadCsv(text: string, name: string): void {
   try {
     state.dataPoints = parseEisCsv(text)
     state.kkResult = null // Reset validation on new file
-  } catch (err) {
-    console.error('Error parsing CSV:', err)
+  } catch {
     state.dataPoints = []
   }
 }
@@ -221,7 +220,7 @@ const eisPlotsRef = ref<{ downloadPlotImage: (type: 'nyquist' | 'bode') => void 
   width: 4px;
 }
 .workspace-sidebar::-webkit-scrollbar-thumb {
-  background: #ddd;
+  background: var(--color-border);
   border-radius: 4px;
 }
 

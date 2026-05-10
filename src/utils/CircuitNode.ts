@@ -60,19 +60,6 @@ export class CircuitNode {
   }
 
 
-  //Används inte
-  countAmount(): number {
-    //console.log(`Counting amount for node ${this.id} of type ${this.type}`);
-
-    if (this.type === 'end') return 0;
-    if (this.type === 'parallel'){
-        const upperAmount = this.upperBranch ? this.upperBranch.countAmount() : 0;
-        const lowerAmount = this.lowerBranch ? this.lowerBranch.countAmount() : 0;
-        return upperAmount + lowerAmount + (this.next?.countAmount() ?? 0);
-    }
-    return 1 + (this.next?.countAmount() ?? 0);
-  }
-
   countLength(): number {
     if (this.type === 'end') return 0;
     if (this.type === 'parallel') {
@@ -126,16 +113,5 @@ export class CircuitNode {
   if (this.next) {
     this.next.setEarlier(this.earlier);
   }
-  }
-//Troligen också inte använd
-  placeNode(beforeNode: CircuitNode | null, afterNode: CircuitNode | null) {
-    if (beforeNode) {
-      beforeNode.setNext(this);
-      this.setEarlier(beforeNode);
-    }
-    if (afterNode) {
-      afterNode.setEarlier(this);
-      this.setNext(afterNode);
-    }
   }
 }

@@ -73,13 +73,14 @@ function fmtError(value: number | undefined, error: number | undefined): string 
 </script>
 
 <template>
-  <div class="param-editor-scroll">
+  <div class="param-editor">
     <div class="param-list-header">
       <span class="col-header col-header--lock"></span>
       <span class="col-header col-header--param">Parameter</span>
       <span class="col-header col-header--value">Value</span>
       <span class="col-header col-header--error">Error %</span>
     </div>
+    <div class="param-editor-scroll">
     <div class="param-list">
       <template v-for="node in nodes" :key="node.id">
         <!-- Row for the first parameter -->
@@ -158,6 +159,7 @@ function fmtError(value: number | undefined, error: number | undefined): string 
         </div>
       </template>
     </div>
+    </div>
   </div>
 </template>
 
@@ -168,19 +170,21 @@ const vFocus = {
 </script>
 
 <style scoped>
+.param-editor {
+  /* Pull the header and rows flush against the BaseCard edges, including the top */
+  margin: -24px -24px 0;
+}
+
 .param-editor-scroll {
   max-height: calc(100vh - 500px);
   overflow-y: auto;
-  /* Use negative margins to pull the rows to the very edge of the BaseCard */
-  margin: 0 -24px;
-  padding: 0;
 }
 
 .param-editor-scroll::-webkit-scrollbar {
   width: 4px;
 }
 .param-editor-scroll::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--color-border);
   border-radius: 4px;
 }
 
@@ -189,14 +193,14 @@ const vFocus = {
   align-items: center;
   gap: 8px;
   padding: 4px 16px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .col-header {
   font-size: 10px;
   font-weight: 600;
-  color: #94a3b8;
+  color: var(--color-text-subtle);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
@@ -216,12 +220,12 @@ const vFocus = {
 .param-group {
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .param-group:first-child {
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--color-border);
 }
 
 .param-main-row, .param-secondary-row {
@@ -232,8 +236,8 @@ const vFocus = {
 }
 
 .param-secondary-row {
-  background: #f8fafc;
-  border-top: 1px dashed #e2e8f0;
+  background: var(--color-bg);
+  border-top: 1px dashed var(--color-border);
 }
 
 .lock-cell {
@@ -285,7 +289,7 @@ const vFocus = {
   display: block;
   font-size: 13px;
   font-weight: 700;
-  color: #334155;
+  color: var(--color-text);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
@@ -295,14 +299,14 @@ const vFocus = {
 
 .param-id:hover {
   text-decoration: underline;
-  color: #007bff;
+  color: var(--color-primary);
 }
 
 .param-id-input {
   width: 65px;
   font-size: 12px;
   font-weight: 700;
-  border: 1px solid #3b82f6;
+  border: 1px solid var(--color-primary);
   border-radius: 3px;
   padding: 0 2px;
   outline: none;
@@ -323,7 +327,7 @@ const vFocus = {
 
 .param-unit-label {
   font-size: 11px;
-  color: #64748b;
+  color: var(--color-text-muted);
   white-space: nowrap;
   text-align: right;
   min-width: 20px;
@@ -333,10 +337,10 @@ const vFocus = {
   flex-shrink: 0;
 }
 
-.val-cell { width: 75px; } 
+.val-cell { width: 75px; }
 
 .param-input {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   padding: 4px 6px;
   font-size: 12px;
@@ -349,21 +353,21 @@ const vFocus = {
 
 .param-input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
 .param-input:disabled {
-  background: #f1f5f9;
-  color: #94a3b8;
+  background: var(--color-bg);
+  color: var(--color-text-subtle);
   cursor: not-allowed;
-  border-color: #e2e8f0;
+  border-color: var(--color-border);
 }
 
 .param-error {
   font-size: 10px;
   font-family: monospace;
-  color: #94a3b8;
+  color: var(--color-text-subtle);
   white-space: nowrap;
   min-width: 80px;
 }

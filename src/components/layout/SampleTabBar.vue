@@ -90,7 +90,7 @@ const vFocus = {
   display: flex;
   align-items: stretch;
   margin-bottom: var(--space-4);
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--color-border);
   overflow: hidden;
   padding-left: 8px;
 }
@@ -99,8 +99,8 @@ const vFocus = {
   flex: 0 1 200px;
   min-width: 60px;
   padding: 10px 14px;
-  background: #eee;
-  border: 1px solid #ccc;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
   border-bottom: none;
   border-left: none;
   cursor: pointer;
@@ -113,15 +113,15 @@ const vFocus = {
 }
 
 .sample-tab:first-child {
-  border-left: 1px solid #ccc;
+  border-left: 1px solid var(--color-border);
 }
 
 .sample-tab:hover {
-  background: #f5f5f5;
+  background: var(--color-bg);
 }
 
 .sample-tab--active {
-  background: white;
+  background: var(--color-surface);
   margin-bottom: -1px;
   padding-bottom: 11px;
   font-weight: 600;
@@ -136,7 +136,7 @@ const vFocus = {
   left: 0;
   right: 0;
   height: 3px;
-  background: #007bff;
+  background: var(--color-primary);
 }
 
 .sample-tab__content {
@@ -158,11 +158,11 @@ const vFocus = {
   width: 100%;
   font-size: 13px;
   font-weight: inherit;
-  border: 1px solid #007bff;
+  border: 1px solid var(--color-primary);
   border-radius: 2px;
   padding: 0 2px;
   outline: none;
-  background: white;
+  background: var(--color-surface);
 }
 
 .sample-tab__edit-btn {
@@ -170,7 +170,7 @@ const vFocus = {
   border: none;
   font-size: 12px;
   cursor: pointer;
-  color: #007bff;
+  color: var(--color-primary);
   opacity: 0;
   transition: opacity 0.2s;
   padding: 2px;
@@ -192,22 +192,22 @@ const vFocus = {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #888;
+  color: var(--color-text-subtle);
   flex-shrink: 0;
 }
 
 .sample-tab__close:hover {
   background: rgba(0,0,0,0.05);
-  color: #333;
+  color: var(--color-text);
 }
 
 .add-sample-btn {
   flex: 0 0 40px;
-  background: #eee;
-  border: 1px solid #ccc;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
   border-bottom: none;
   border-left: none;
-  color: #555;
+  color: var(--color-text-muted);
   cursor: pointer;
   font-size: 20px;
   display: flex;
@@ -217,7 +217,7 @@ const vFocus = {
 }
 
 .add-sample-btn:hover {
-  background: #f5f5f5;
-  color: #000;
+  background: var(--color-bg);
+  color: var(--color-text);
 }
 </style>

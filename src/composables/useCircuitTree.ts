@@ -185,8 +185,6 @@ export function useCircuitTree() {
   renderVersion.value++;
 }
 
-// Kom ihåg att lägga till morphNode i return-objektet för useCircuitTree!
-
   return {
     rootNode,
     renderVersion,

@@ -102,8 +102,8 @@ function handleExportPlot(type: 'nyquist' | 'bode') {
 }
 
 .export-card {
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 16px;
   display: flex;
@@ -118,7 +118,7 @@ function handleExportPlot(type: 'nyquist' | 'bode') {
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--color-text-muted);
   margin: 0 0 12px 0;
   letter-spacing: 0.05em;
 }
@@ -127,8 +127,8 @@ function handleExportPlot(type: 'nyquist' | 'bode') {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 8px 12px;
   margin-bottom: 8px;
@@ -139,7 +139,7 @@ function handleExportPlot(type: 'nyquist' | 'bode') {
   font-family: monospace;
   font-weight: 600;
   font-size: 14px;
-  color: #1e293b;
+  color: var(--color-text);
   word-break: break-all;
 }
 
@@ -154,12 +154,12 @@ function handleExportPlot(type: 'nyquist' | 'bode') {
 }
 
 .icon-btn:hover {
-  background: #e2e8f0;
+  background: var(--color-border);
 }
 
 .card-hint {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--color-text-subtle);
   margin: 0;
 }
 
@@ -175,27 +175,27 @@ function handleExportPlot(type: 'nyquist' | 'bode') {
   gap: 10px;
   width: 100%;
   padding: 10px 14px;
-  background: white;
-  border: 1px solid #cbd5e1;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: var(--color-text);
   cursor: pointer;
   transition: all 0.2s;
   text-align: left;
 }
 
 .export-btn:hover:not(:disabled) {
-  background: #f1f5f9;
-  border-color: #007bff;
-  color: #007bff;
+  background: var(--color-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .export-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  background: #f8fafc;
+  background: var(--color-bg);
 }
 
 .icon {
