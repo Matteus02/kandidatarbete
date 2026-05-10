@@ -70,7 +70,7 @@ export function useLMFitting(
     }
   })
 
-  // Försöker gissa bra startvärden så att optimeringen (fittingen) inte ballar ur
+  // Försöker gissa bra startvärden så att optimeringen inte blir knas
   function estimateInitialValues() {
     const data = getEisData()
     if (data.length === 0) return // ingen data, inget att göra
@@ -266,7 +266,7 @@ export function useLMFitting(
       return
     }
 
-    // bygger en lista på vilka specifika parametrar ('value' eller 'value2') som ska optimeras
+    // bygger en lista på vilka specifika parametrar som ska optimeras
     type ParamRef = { node: CircuitNode; param: 'value' | 'value2' }
     const paramRefs: ParamRef[] = []
     for (const node of optimizableNodes) {
