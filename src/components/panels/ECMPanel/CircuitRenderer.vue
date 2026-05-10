@@ -32,9 +32,8 @@ const emptyBranchHover = ref<'upper' | 'lower' | null>(null)
 const onDrop = (event: DragEvent, action: 'before' | 'replace' | 'after') => {
   hoverState.value = null;
   const type = event.dataTransfer?.getData('componentType');
-  const finalAction = (!props.node || props.node.type === 'empty') ? 'replace' : action;
   if (type && handleNodeDrop) {
-    handleNodeDrop(props.node, type, finalAction);
+    handleNodeDrop(props.node, type, action);
   }
 }
 
@@ -57,21 +56,7 @@ const handleRemove = () => {
 </script>
 
 <template>
-    <g v-if="!node || node.type === 'empty'" :transform="`translate(${x}, ${y})`">
-        <rect x="0" y="-20" width="120" height="40" rx="5"
-              fill="rgba(59,130,246,0.05)" stroke="#3b82f6" stroke-dasharray="4,4"
-              cursor="pointer"
-              @dragover.prevent @dragenter.prevent="hoverState = 'replace'"
-              @dragleave="hoverState = null"
-              @drop.stop.prevent="onDrop($event, 'replace')" />
-        <text x="60" y="4" text-anchor="middle" font-size="11" fill="#3b82f6" pointer-events="none">
-            Dra komponent hit
-        </text>
-        <rect v-if="hoverState === 'replace'" x="0" y="-20" width="120" height="40" rx="5"
-              fill="rgba(59,130,246,0.15)" stroke="#3b82f6" pointer-events="none" />
-    </g>
-
-    <g v-else :transform="`translate(${x}, ${y})`">
+    <g :transform="`translate(${x}, ${y})`">
 
         <g class="drop-zone-before" v-show="isDragging">
             <rect x="-19" y="-13" width="16" height="26" rx="3"

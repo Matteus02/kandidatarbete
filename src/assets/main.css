@@ -1,19 +1,19 @@
 :root {
-  --color-bg: #f7f8fa;
+  --color-bg: #f8fafc;
   --color-surface: #ffffff;
-  --color-border: #e3e6ea;
-  --color-text: #1f2937;
-  --color-text-muted: #6b7280;
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
+  --color-border: #e2e8f0;
+  --color-text: #1e293b;
+  --color-text-muted: #64748b;
+  --color-text-subtle: #94a3b8;
+  --color-primary: #007bff;
+  --color-primary-hover: #0056b3;
 
   --radius: 2px;
 
-  --space-1: 8px;
+  --space-1: 4px;
   --space-2: 8px;
   --space-3: 16px;
   --space-4: 24px;
-  --space-5: 32px;
 
   --font-sans: 'Segoe UI', system-ui, -apple-system, Tahoma, Geneva, Verdana,
     sans-serif;

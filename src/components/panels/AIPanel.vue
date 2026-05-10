@@ -118,7 +118,7 @@ function handleApply(circuit: string): void {
 
 <style scoped>
 .ai-empty {
-  color: var(--color-text-muted, #888);
+  color: var(--color-text-muted);
   font-size: 13px;
   padding: 4px 0;
 }
@@ -131,8 +131,8 @@ function handleApply(circuit: string): void {
 }
 
 .ai-btn-primary {
-  background: #007bff;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-surface);
   border: none;
   border-radius: 4px;
   padding: 8px 16px;
@@ -142,7 +142,7 @@ function handleApply(circuit: string): void {
 }
 
 .ai-btn-primary:hover:not(:disabled) {
-  background: #0056b3;
+  background: var(--color-primary-hover);
 }
 
 .ai-btn-primary:disabled {
@@ -153,7 +153,7 @@ function handleApply(circuit: string): void {
 .ai-btn-toggle {
   background: none;
   border: none;
-  color: #007bff;
+  color: var(--color-primary);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -162,7 +162,7 @@ function handleApply(circuit: string): void {
 }
 
 .ai-btn-toggle:hover {
-  color: #0056b3;
+  color: var(--color-primary-hover);
 }
 
 .ai-spinner {
@@ -174,7 +174,7 @@ function handleApply(circuit: string): void {
 .spinner-dot {
   width: 8px;
   height: 8px;
-  background: #007bff;
+  background: var(--color-primary);
   border-radius: 50%;
   animation: bounce 0.8s infinite alternate;
 }
@@ -213,13 +213,13 @@ function handleApply(circuit: string): void {
   width: 4px;
 }
 .ai-results::-webkit-scrollbar-thumb {
-  background: #ddd;
+  background: var(--color-border);
   border-radius: 4px;
 }
 
 .ai-result-item {
-  background: #fafafa;
-  border: 1px solid #e0e0e0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 10px 14px;
 }
@@ -240,15 +240,15 @@ function handleApply(circuit: string): void {
 .ai-confidence-pct {
   font-size: 14px;
   font-weight: 600;
-  color: #007bff;
+  color: var(--color-primary);
   min-width: 46px;
   text-align: right;
 }
 
 .ai-btn-apply {
-  background: white;
-  color: #007bff;
-  border: 1px solid #007bff;
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
   border-radius: 4px;
   padding: 4px 12px;
   font-size: 13px;
@@ -257,20 +257,20 @@ function handleApply(circuit: string): void {
 }
 
 .ai-btn-apply:hover {
-  background: #007bff;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-surface);
 }
 
 .ai-bar-track {
   height: 6px;
-  background: #e0e0e0;
+  background: var(--color-border);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .ai-bar-fill {
   height: 100%;
-  background: #007bff;
+  background: var(--color-primary);
   border-radius: 3px;
   transition: width 0.4s ease;
 }

@@ -78,30 +78,29 @@ function onDragStart(event: DragEvent, type: string) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #f8f8f8;
-  border: 1px solid #ddd;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 4px 8px;
   cursor: grab;
   user-select: none;
-  -webkit-user-select: none;
   transition: background-color 0.15s;
 }
 
 .palette-item:hover {
   background: #eef4ff;
-  border-color: #007bff;
+  border-color: var(--color-primary);
 }
 
 .palette-label {
   font-size: 11px;
-  color: #666;
+  color: var(--color-text-muted);
   margin-top: 2px;
 }
 
 .instructions {
   font-size: 11px;
-  color: #555;
+  color: var(--color-text-muted);
   max-width: 280px;
   line-height: 1.6;
 }

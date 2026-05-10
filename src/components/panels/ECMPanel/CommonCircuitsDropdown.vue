@@ -48,23 +48,23 @@ function onChange(event: Event) {
 .dropdown-label {
   font-size: 13px;
   font-weight: 600;
-  color: #555;
+  color: var(--color-text-muted);
 }
 
 .circuit-dropdown {
   padding: 6px 10px;
   font-size: 13px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  background-color: white;
-  color: #333;
+  background-color: var(--color-surface);
+  color: var(--color-text);
   outline: none;
   cursor: pointer;
   min-width: 250px;
 }
 
 .circuit-dropdown:focus {
-  border-color: #007bff;
+  border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
 }
 </style>
