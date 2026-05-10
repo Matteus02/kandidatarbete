@@ -188,8 +188,8 @@ watch(
               {{ isFitting ? 'Fitting…' : 'Re-Fit' }}
             </button>
           </div>
-          <span class="hint">Estimate & Fit: resets parameters from data then fits</span>
-          <span class="hint">Re-Fit: fits again from current values (warm start)</span>
+          <span class="hint">Estimate & Fit: Finds parameters from data then fits</span>
+          <span class="hint">Re-Fit: fits again from current values</span>
           <span class="hint">Click the lock icon to fix a parameter at its current value before fitting</span>
         </div>
       </BaseCard>
